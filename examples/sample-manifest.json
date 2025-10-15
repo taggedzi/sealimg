@@ -1,0 +1,34 @@
+{
+  "schema": "https://sealimg.org/provenance/v1",
+  "image_id": "IMG-2025-10-15-0007",
+  "title": "Optional Title",
+  "author": "Matthew Craig",
+  "website": "https://taggedz.me",
+  "license": "CC BY-NC 4.0",
+  "source": {
+    "ai_assisted": true,
+    "ai_base": "Midjourney",
+    "edited_by_human": true,
+    "tools": ["GIMP", "Krita"]
+  },
+  "files": {
+    "master": {"path": "master.png", "sha256": "<hex>"},
+    "web": {"path": "web.jpg", "sha256": "<hex>"}
+  },
+  "watermarks": {
+    "visible": {"applied": true, "style": "diag-low", "text": "© Matthew Craig • taggedz.me"},
+    "invisible": {"applied": false, "payload": null}
+  },
+  "timestamps": {
+    "local_created": "2025-10-15T03:12:05-04:00",
+    "sealed_utc": "2025-10-15T07:12:20Z",
+    "public_proof": "optional: posted hash line or URL"
+  },
+  "signature": {
+    "algo": "ed25519",
+    "signer": "Matthew Craig",
+    "pubkey_fingerprint": "<short>",
+    "signature_file": "manifest.sig"
+  },
+  "notes": "Optional: prior publication links, DMCA IDs."
+}
