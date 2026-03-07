@@ -160,6 +160,20 @@ def parse_dropped_paths(data: str) -> list[str]:
     return items
 
 
+def resolve_config_dialog_start_dir(current_path: str, default_path: str) -> str:
+    candidate = Path(current_path).expanduser()
+    if candidate.is_dir():
+        return str(candidate)
+    if candidate.parent.exists():
+        return str(candidate.parent)
+    fallback = Path(default_path).expanduser()
+    if fallback.is_dir():
+        return str(fallback)
+    if fallback.parent.exists():
+        return str(fallback.parent)
+    return str(Path.cwd())
+
+
 def build_gui_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="sealimg-gui",
@@ -227,9 +241,25 @@ def run_gui(
     controls = ttk.Frame(frame)
     controls.pack(fill="x")
 
+    default_config_path = config_path
+
     ttk.Label(controls, text="Config path").grid(row=0, column=0, sticky="w")
-    ttk.Entry(controls, textvariable=config_var, width=56).grid(
+    ttk.Entry(controls, textvariable=config_var, width=48).grid(
         row=0, column=1, sticky="ew", padx=6
+    )
+    def _browse_config() -> None:
+        current = config_var.get().strip()
+        selected = filedialog.askopenfilename(
+            title="Select config file",
+            initialdir=resolve_config_dialog_start_dir(current, default_config_path),
+            initialfile=Path(current).name if current else Path(default_config_path).name,
+            filetypes=[("YAML files", "*.yml *.yaml"), ("All files", "*.*")],
+        )
+        if selected:
+            config_var.set(str(selected))
+
+    ttk.Button(controls, text="Browse...", command=_browse_config).grid(
+        row=0, column=2, sticky="w"
     )
     ttk.Label(controls, text="Profile").grid(row=1, column=0, sticky="w")
     ttk.Entry(controls, textvariable=profile_var, width=24).grid(
