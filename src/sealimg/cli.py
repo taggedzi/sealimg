@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 from pathlib import Path
 from typing import Sequence
@@ -91,14 +92,17 @@ def build_parser() -> argparse.ArgumentParser:
     seal.add_argument("--signing-key", default=None)
     seal.add_argument("--passphrase", default=None)
     seal.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH))
+    seal.add_argument("--json", action="store_true", help="Emit machine-readable JSON output")
 
     verify = subparsers.add_parser("verify", help="Verify a manifest/image")
     verify.add_argument("target")
     verify.add_argument("--pubkey", default=None)
     verify.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH))
+    verify.add_argument("--json", action="store_true", help="Emit machine-readable JSON output")
 
     inspect = subparsers.add_parser("inspect", help="Inspect image metadata and embed status")
     inspect.add_argument("image")
+    inspect.add_argument("--json", action="store_true", help="Emit machine-readable JSON output")
 
     config = subparsers.add_parser("config", help="Set/view defaults")
     config_sub = config.add_subparsers(dest="config_command", required=True)
@@ -295,6 +299,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         id_gen = ImageIdGenerator(prefix=args.id_prefix)
         exit_code = 0
+        json_results = []
         for image in inputs:
             try:
                 result = seal_image(
@@ -312,14 +317,48 @@ def main(argv: Sequence[str] | None = None) -> int:
                     signer_name=metadata.author,
                     public_key_path=public_key,
                 )
-                print(f"Sealed {image} -> {result.output_dir}")
-                print(f"Embed status: {result.embed_status.status} ({result.embed_status.message})")
+                json_results.append(
+                    {
+                        "input": str(image),
+                        "image_id": result.image_id,
+                        "output_dir": str(result.output_dir),
+                        "master": str(result.master_path),
+                        "web": str(result.web_path),
+                        "manifest": str(result.manifest_path),
+                        "signature": str(result.signature_path),
+                        "sha256": str(result.sha_path),
+                        "readme": str(result.readme_path),
+                        "bundle": str(result.zip_path) if result.zip_path else None,
+                        "embed_status": result.embed_status.status,
+                        "embed_message": result.embed_status.message,
+                    }
+                )
+                if not args.json:
+                    print(f"Sealed {image} -> {result.output_dir}")
+                    print(
+                        f"Embed status: {result.embed_status.status} "
+                        f"({result.embed_status.message})"
+                    )
             except ImagePipelineError as exc:
-                print(f"Error: unsupported or invalid image '{image}': {exc}")
+                if not args.json:
+                    print(f"Error: unsupported or invalid image '{image}': {exc}")
                 exit_code = 3
             except Exception as exc:
-                print(f"Error sealing '{image}': {exc}")
+                if not args.json:
+                    print(f"Error sealing '{image}': {exc}")
                 exit_code = 1
+        if args.json:
+            print(
+                json.dumps(
+                    {
+                        "ok": exit_code == 0,
+                        "exit_code": exit_code,
+                        "count": len(json_results),
+                        "results": json_results,
+                    },
+                    sort_keys=True,
+                )
+            )
         return exit_code
 
     if args.command == "verify":
@@ -341,6 +380,26 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"Error: {exc}")
             return 1
 
+        exit_code = 0
+        if not result.signature_valid or not result.hash_valid:
+            exit_code = 2
+        if args.json:
+            print(
+                json.dumps(
+                    {
+                        "ok": exit_code == 0,
+                        "exit_code": exit_code,
+                        "manifest": str(result.manifest_path),
+                        "signature_valid": result.signature_valid,
+                        "hash_valid": result.hash_valid,
+                        "embed_status": result.embed_status.status,
+                        "embed_message": result.embed_status.message,
+                    },
+                    sort_keys=True,
+                )
+            )
+            return exit_code
+
         print(f"Manifest: {result.manifest_path}")
         print(f"Signature: {'valid' if result.signature_valid else 'invalid'}")
         print(f"Hashes: {'valid' if result.hash_valid else 'invalid'}")
@@ -358,6 +417,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         except Exception as exc:
             print(f"Error: {exc}")
             return 1
+        if args.json:
+            print(
+                json.dumps(
+                    {
+                        "ok": True,
+                        "path": str(result.path),
+                        "format": result.format,
+                        "width": result.width,
+                        "height": result.height,
+                        "xmp": result.has_xmp,
+                        "embed_status": result.embed_status.status,
+                        "embed_message": result.embed_status.message,
+                    },
+                    sort_keys=True,
+                )
+            )
+            return 0
         print(f"Path: {result.path}")
         print(f"Format: {result.format}")
         print(f"Size: {result.width}x{result.height}")

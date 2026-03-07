@@ -3,15 +3,15 @@
 This TODO is derived from `README.md`, `docs/`, `design/`, and `specs/` and is intended to be sufficient to build the application described in this repository.
 
 ## 0) Project Setup
-- [ ] Choose primary implementation language/runtime for CLI core.
-- [ ] Initialize project structure for:
-  - [ ] Core sealing library
-  - [ ] CLI interface
-  - [ ] Format adapters (PNG/JPEG first)
-  - [ ] Crypto/key management
-  - [ ] Verification/inspection
-- [ ] Add linting, formatting, test runner, and CI baseline.
-- [ ] Add fixture directories for sample images and golden manifests/signatures.
+- [x] Choose primary implementation language/runtime for CLI core.
+- [x] Initialize project structure for:
+  - [x] Core sealing library
+  - [x] CLI interface
+  - [x] Format adapters (PNG/JPEG first)
+  - [x] Crypto/key management
+  - [x] Verification/inspection
+- [x] Add linting, formatting, test runner, and CI baseline.
+- [x] Add fixture directories for sample images and golden manifests/signatures.
 
 ## 1) Core Domain Models
 - [x] Implement `config.yml` model from `docs/config.md`.
@@ -85,19 +85,19 @@ This TODO is derived from `README.md`, `docs/`, `design/`, and `specs/` and is i
 
 ## 7) Reliability, Safety, and UX
 - [ ] Ensure private key/passphrase never printed or logged.
-- [ ] Add friendly, actionable errors for unsupported formats and missing keys.
-- [ ] Add deterministic output for CI use (machine-readable mode).
+- [x] Add friendly, actionable errors for unsupported formats and missing keys.
+- [x] Add deterministic output for CI use (machine-readable mode).
 - [ ] Add watch/batch behavior backlog item for v0.3.
 - [ ] Add timestamp helper backlog item for v0.5 (`hashes.txt` + optional POST hook).
 
 ## 8) Test Plan Implementation
-- [ ] Functional tests:
-  - [ ] seal PNG
-  - [ ] seal JPEG
-  - [ ] verify outputs exist and parse
+- [x] Functional tests:
+  - [x] seal PNG
+  - [x] seal JPEG
+  - [x] verify outputs exist and parse
 - [ ] Crypto tests:
-  - [ ] signature validates with independent verifier
-  - [ ] tampered manifest fails verification
+  - [x] signature validates with independent verifier
+  - [x] tampered manifest fails verification
 - [ ] Metadata tests:
   - [ ] IPTC/XMP mappings match `specs/iptc-xmp-mapping.md`
 - [ ] Embed tests:
@@ -105,7 +105,7 @@ This TODO is derived from `README.md`, `docs/`, `design/`, and `specs/` and is i
   - [ ] sidecar fallback path
 - [ ] Mutation tests:
   - [ ] metadata stripped case still verifies via sidecar
-  - [ ] modified file causes hash mismatch
+  - [x] modified file causes hash mismatch
 - [ ] Cross-platform tests:
   - [ ] Windows/macOS/Linux paths
   - [ ] non-ASCII filenames
