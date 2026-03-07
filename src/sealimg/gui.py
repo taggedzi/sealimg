@@ -277,52 +277,71 @@ def run_gui(
             passphrase=passphrase_var.get(),
         )
 
+    def _ensure_setup() -> bool:
+        cfg_path = config_var.get().strip()
+        has_keys, config_invalid = detect_bootstrap_needs(cfg_path)
+        if config_invalid:
+            messagebox.showerror(
+                "Sealimg",
+                "Config file is invalid and cannot be read. Fix it or remove it and try again.",
+            )
+            return False
+        if has_keys:
+            _append("Setup check: signing key is available.")
+            return True
+        if not passphrase_var.get().strip():
+            messagebox.showerror("Sealimg", "Passphrase is required for key generation.")
+            return False
+        consent = messagebox.askyesno(
+            "Sealimg setup",
+            "No signing key was found for this config. Generate one now?",
+        )
+        if not consent:
+            _append("Canceled: signing key is required to seal images.")
+            return False
+        signer = infer_default_signer_name(cfg_path)
+        signer = simpledialog.askstring(
+            "Signer name",
+            "Signer display name for the new key:",
+            initialvalue=signer,
+        )
+        if signer is None or not signer.strip():
+            _append("Canceled: signer name is required for key generation.")
+            return False
+        _append("Generating signing key and initializing config...")
+        from . import cli as cli_module
+
+        keygen_args = build_keygen_cli_args(
+            config_path=cfg_path,
+            passphrase=passphrase_var.get().strip(),
+            signer_name=signer.strip(),
+        )
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            keygen_rc = cli_module.main(keygen_args)
+        text = buffer.getvalue().strip()
+        if text:
+            for line in text.splitlines():
+                _append(line)
+        if keygen_rc != 0:
+            messagebox.showerror("Sealimg", "Key generation failed. See output for details.")
+            return False
+        _append("Key generation complete.")
+        return True
+
+    def _run_setup() -> None:
+        if running["active"]:
+            return
+        _ensure_setup()
+
     def _run_seal() -> None:
         if running["active"]:
             return
         if not paths:
             messagebox.showerror("Sealimg", "Add at least one file or folder.")
             return
-        if not passphrase_var.get().strip():
-            messagebox.showerror("Sealimg", "Passphrase is required.")
+        if not _ensure_setup():
             return
-        has_keys, config_invalid = detect_bootstrap_needs(config_var.get().strip())
-        if config_invalid:
-            messagebox.showerror(
-                "Sealimg",
-                "Config file is invalid and cannot be read. Fix it or remove it and try again.",
-            )
-            return
-        if not has_keys:
-            consent = messagebox.askyesno(
-                "Sealimg setup",
-                "No signing key was found for this config. Generate one now?",
-            )
-            if not consent:
-                _append("Canceled: signing key is required to seal images.")
-                return
-            signer = infer_default_signer_name(config_var.get().strip())
-            signer = simpledialog.askstring(
-                "Signer name",
-                "Signer display name for the new key:",
-                initialvalue=signer,
-            )
-            if signer is None or not signer.strip():
-                _append("Canceled: signer name is required for key generation.")
-                return
-            _append("Generating signing key and initializing config...")
-            from . import cli as cli_module
-
-            keygen_args = build_keygen_cli_args(
-                config_path=config_var.get().strip(),
-                passphrase=passphrase_var.get().strip(),
-                signer_name=signer.strip(),
-            )
-            keygen_rc = cli_module.main(keygen_args)
-            if keygen_rc != 0:
-                messagebox.showerror("Sealimg", "Key generation failed. See output for details.")
-                return
-            _append("Key generation complete.")
         running["active"] = True
         run_btn.configure(state="disabled")
         _append("Starting seal run...")
@@ -362,6 +381,8 @@ def run_gui(
         thread = threading.Thread(target=_worker, daemon=True)
         thread.start()
 
+    setup_btn = ttk.Button(btns, text="Setup keys", command=_run_setup)
+    setup_btn.pack(side="right", padx=(0, 6))
     run_btn = ttk.Button(btns, text="Seal now", command=_run_seal)
     run_btn.pack(side="right")
 
