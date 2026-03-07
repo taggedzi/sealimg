@@ -160,3 +160,58 @@ def test_seal_sets_manifest_public_proof_prefers_post_url(
     manifest = sealed_dir / "manifest.json"
     payload = json.loads(manifest.read_text(encoding="utf-8"))
     assert payload["timestamps"]["public_proof"] == post_url
+
+
+def test_seal_uses_profile_timestamp_defaults_when_flags_missing(tmp_path: Path) -> None:
+    config_path, output_root, _ = _create_config_and_keys(tmp_path)
+    image_path = tmp_path / "profile-default-ts.png"
+    Image.new("RGB", (320, 240), color=(11, 22, 33)).save(image_path, format="PNG")
+    ts_log = tmp_path / "profile-hashes.txt"
+
+    rc = main(
+        [
+            "profile",
+            "add",
+            "web",
+            "--long-edge",
+            "2560",
+            "--quality",
+            "82",
+            "--wm-visible",
+            "on",
+            "--wm-invisible",
+            "off",
+            "--wm-invisible-mode",
+            "auto",
+            "--wm-style",
+            "diag-low",
+            "--wm-text",
+            "",
+            "--timestamp-log",
+            str(ts_log),
+            "--timestamp-post-url",
+            "",
+            "--config-path",
+            str(config_path),
+        ]
+    )
+    assert rc == 0
+
+    rc = main(
+        [
+            "seal",
+            str(image_path),
+            "--config-path",
+            str(config_path),
+            "--passphrase",
+            "watch-pass",
+        ]
+    )
+    assert rc == 0
+    lines = ts_log.read_text(encoding="utf-8").strip().splitlines()
+    assert len(lines) >= 1
+
+    sealed_dir = next(p for p in output_root.iterdir() if p.is_dir())
+    manifest = sealed_dir / "manifest.json"
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    assert payload["timestamps"]["public_proof"] == str(ts_log.resolve())

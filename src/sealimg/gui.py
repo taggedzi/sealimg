@@ -15,6 +15,7 @@ from typing import Sequence
 
 from . import __version__
 from .config import SealimgConfig, load_config, save_config
+from .profiles import merge_profile
 
 VISIBLE_WATERMARK_STYLES = ("diag-low", "flat")
 
@@ -237,6 +238,8 @@ def upsert_profile_in_config(
     wm_invisible_mode: str,
     wm_style: str,
     wm_text: str,
+    timestamp_log: str = "",
+    timestamp_post_url: str = "",
     make_default: bool = False,
 ) -> None:
     cfg_path = Path(config_path).expanduser()
@@ -254,6 +257,8 @@ def upsert_profile_in_config(
             "enabled": bool(wm_invisible_enabled),
             "mode": str(wm_invisible_mode),
         },
+        "timestamp_log": str(timestamp_log),
+        "timestamp_post_url": str(timestamp_post_url),
     }
     if make_default:
         data["default_profile"] = profile_name
@@ -374,6 +379,8 @@ def run_gui(
     wm_invisible_mode_summary_var = tk.StringVar(value="auto")
     wm_visible_style_summary_var = tk.StringVar(value="diag-low")
     wm_visible_text_summary_var = tk.StringVar(value="")
+    timestamp_log_summary_var = tk.StringVar(value="(not set)")
+    timestamp_post_url_summary_var = tk.StringVar(value="(not set)")
     bundle_var = tk.BooleanVar(value=False)
     no_embed_var = tk.BooleanVar(value=False)
 
@@ -435,7 +442,7 @@ def run_gui(
     )
     controls.columnconfigure(1, weight=1)
 
-    profile_info = ttk.LabelFrame(frame, text="Profile watermark settings (read-only)")
+    profile_info = ttk.LabelFrame(frame, text="Profile settings (read-only)")
     profile_info.pack(fill="x", pady=(8, 6))
     summary_grid = ttk.Frame(profile_info)
     summary_grid.pack(fill="x", padx=8, pady=8)
@@ -472,6 +479,27 @@ def run_gui(
     ttk.Label(invisible_frame, textvariable=wm_invisible_mode_summary_var).grid(
         row=1, column=1, sticky="w", padx=(0, 8), pady=(2, 8)
     )
+
+    timestamp_frame = ttk.LabelFrame(summary_grid, text="Timestamp proof")
+    timestamp_frame.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(8, 0))
+    ttk.Label(timestamp_frame, text="Log file").grid(
+        row=0, column=0, sticky="w", padx=8, pady=(8, 2)
+    )
+    ttk.Label(
+        timestamp_frame,
+        textvariable=timestamp_log_summary_var,
+        justify="left",
+        wraplength=680,
+    ).grid(row=0, column=1, sticky="w", padx=(0, 8), pady=(8, 2))
+    ttk.Label(timestamp_frame, text="Post URL").grid(
+        row=1, column=0, sticky="w", padx=8, pady=(2, 8)
+    )
+    ttk.Label(
+        timestamp_frame,
+        textvariable=timestamp_post_url_summary_var,
+        justify="left",
+        wraplength=680,
+    ).grid(row=1, column=1, sticky="w", padx=(0, 8), pady=(2, 8))
 
     flags = ttk.Frame(frame)
     flags.pack(fill="x", pady=(0, 6))
@@ -560,7 +588,10 @@ def run_gui(
         profile_combo["values"] = names
         profile_var.set(selected)
         profile_data = cfg.profiles.get(selected) if cfg else {}
-        state = derive_profile_watermark_state(profile_data)
+        merged_profile = (
+            merge_profile(cfg.profiles.get("web", {}), profile_data) if cfg else profile_data
+        )
+        state = derive_profile_watermark_state(merged_profile)
         wm_visible_var.set(bool(state["visible_enabled"]))
         wm_invisible_var.set(bool(state["invisible_enabled"]))
         wm_invisible_mode_var.set(str(state["invisible_mode"]))
@@ -569,6 +600,12 @@ def run_gui(
         wm_invisible_mode_summary_var.set(wm_invisible_mode_var.get())
         wm_visible_style_summary_var.set(str(state["visible_style"]))
         wm_visible_text_summary_var.set(str(state["visible_text"]) or "(not set)")
+        timestamp_log_summary_var.set(
+            str(merged_profile.get("timestamp_log", "")).strip() or "(not set)"
+        )
+        timestamp_post_url_summary_var.set(
+            str(merged_profile.get("timestamp_post_url", "")).strip() or "(not set)"
+        )
 
     def _open_settings_modal() -> None:
         cfg_path = config_var.get().strip()
@@ -760,7 +797,7 @@ def run_gui(
 
         win = tk.Toplevel(root)
         win.title("Manage Profiles")
-        win.geometry("780x420")
+        win.geometry("820x520")
         win.transient(root)
         win.grab_set()
 
@@ -781,6 +818,8 @@ def run_gui(
         wm_invisible_mode_var_local = tk.StringVar(value="auto")
         wm_style_var = tk.StringVar(value="diag-low")
         wm_text_var = tk.StringVar(value="")
+        timestamp_log_var = tk.StringVar(value="")
+        timestamp_post_url_var = tk.StringVar(value="")
         make_default_var = tk.BooleanVar(value=False)
 
         lb = tk.Listbox(left, height=14, exportselection=False)
@@ -831,6 +870,8 @@ def run_gui(
             wm_invisible_mode_var_local.set(str(wm_invisible.get("mode", "auto")))
             wm_style_var.set(normalize_visible_style(str(wm_visible.get("style", "diag-low"))))
             wm_text_var.set(str(wm_visible.get("text", "")))
+            timestamp_log_var.set(str(p.get("timestamp_log", "")))
+            timestamp_post_url_var.set(str(p.get("timestamp_post_url", "")))
             make_default_var.set(current_cfg.default_profile == n)
 
         lb.bind("<<ListboxSelect>>", _load_selected)
@@ -890,10 +931,22 @@ def run_gui(
             width=14,
         ).grid(row=1, column=1, sticky="w", padx=(0, 8), pady=(2, 8))
 
+        ts_group = ttk.LabelFrame(right, text="Timestamp proof defaults")
+        ts_group.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(10, 0))
+        ttk.Label(ts_group, text="Log file").grid(row=0, column=0, sticky="w", padx=8, pady=(8, 2))
+        ttk.Entry(ts_group, textvariable=timestamp_log_var, width=48).grid(
+            row=0, column=1, sticky="ew", padx=(0, 8), pady=(8, 2)
+        )
+        ttk.Label(ts_group, text="Post URL").grid(row=1, column=0, sticky="w", padx=8, pady=(2, 8))
+        ttk.Entry(ts_group, textvariable=timestamp_post_url_var, width=48).grid(
+            row=1, column=1, sticky="ew", padx=(0, 8), pady=(2, 8)
+        )
+        ts_group.columnconfigure(1, weight=1)
+
         right.columnconfigure(2, weight=1)
 
         btn_row = ttk.Frame(right)
-        btn_row.grid(row=4, column=0, columnspan=3, sticky="w", pady=(12, 0))
+        btn_row.grid(row=5, column=0, columnspan=3, sticky="w", pady=(12, 0))
 
         def _add_new() -> None:
             suggested = simpledialog.askstring("New profile", "Profile name:", parent=win)
@@ -907,6 +960,8 @@ def run_gui(
             wm_invisible_mode_var_local.set("auto")
             wm_style_var.set("diag-low")
             wm_text_var.set("")
+            timestamp_log_var.set("")
+            timestamp_post_url_var.set("")
             make_default_var.set(False)
 
         def _save_profile() -> None:
@@ -925,6 +980,8 @@ def run_gui(
                     wm_invisible_mode=wm_invisible_mode_var_local.get().strip(),
                     wm_style=normalize_visible_style(wm_style_var.get()),
                     wm_text=wm_text_var.get(),
+                    timestamp_log=timestamp_log_var.get().strip(),
+                    timestamp_post_url=timestamp_post_url_var.get().strip(),
                     make_default=make_default_var.get(),
                 )
             except Exception as exc:
