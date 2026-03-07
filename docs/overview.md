@@ -29,6 +29,9 @@ Sealimg is a tiny, local-first tool that “seals” images with provenance so c
    - `sha256.txt`, `README.txt`.
    - Optional `provenance.zip`.
 
+## Publishing Integrations
+- See `docs/integrations/README.md` for WordPress and SmileCMS integration guides.
+
 ## Key Terms
 - **C2PA**: Open standard for content provenance manifests.
 - **JUMBF**: Container to embed structured data inside images.

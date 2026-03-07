@@ -24,3 +24,7 @@
 - GUI (drag-drop)
 - Docs polished
 - SmileCMS/WordPress integration guide
+
+See integration docs:
+- `docs/integrations/wordpress.md`
+- `docs/integrations/smilecms.md`
