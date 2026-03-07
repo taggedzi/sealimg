@@ -19,11 +19,13 @@
 - AVIF/HEIC/JPEG XL support (embedding)
 - Per-recipient fingerprinting
 - pHash output
+- Status: complete
 
 ## v1.0
 - GUI (drag-drop)
 - Docs polished
 - SmileCMS/WordPress integration guide
+- Status: complete
 
 See integration docs:
 - `docs/integrations/wordpress.md`

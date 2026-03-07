@@ -15,6 +15,27 @@ The format is based on **Keep a Changelog** and this project adheres to **Semant
 
 ---
 
+## [1.0.0] - 2026-03-07
+### Added
+- Local desktop GUI (`sealimg gui` and `sealimg-gui`) for sealing workflows.
+- First-run GUI setup flow to bootstrap signing keys and initialize config.
+- Explicit GUI `Setup keys` action and drag-and-drop input support.
+- `tkinterdnd2` integration for cross-platform drag-and-drop behavior.
+- Integration guides for WordPress and SmileCMS publishing workflows.
+- Sidecar-first expanded format handling across AVIF/HEIC/HEIF/JXL flows.
+- Recipient fingerprint and pHash output in sealing and verification outputs.
+- Third-party notices file for bundled/runtime dependencies.
+
+### Changed
+- CI matrix optimized for resource usage: Windows runs on Python 3.13; Linux keeps 3.11/3.12/3.13.
+- CLI and quickstart docs aligned with GUI onboarding and drag-and-drop behavior.
+
+### Fixed
+- Branch-protection check mismatch from removed Windows matrix jobs resolved via required-check updates.
+- CRLF normalization workflow clarified and stabilized for cross-platform contribution flow.
+
+---
+
 ## [0.1.0-rc1] - 2026-03-07
 ### Added
 - Python package scaffold, CLI entrypoint, and Windows/Linux CI workflow.
@@ -52,6 +73,7 @@ The format is based on **Keep a Changelog** and this project adheres to **Semant
 ### Fixed
 - N/A
 
-[Unreleased]: https://github.com/REPLACE_ORG/REPLACE_REPO/compare/v0.1.0-rc1...HEAD
+[Unreleased]: https://github.com/REPLACE_ORG/REPLACE_REPO/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/REPLACE_ORG/REPLACE_REPO/releases/tag/v1.0.0
 [0.1.0-rc1]: https://github.com/REPLACE_ORG/REPLACE_REPO/releases/tag/v0.1.0-rc1
 [0.1.0]: https://github.com/REPLACE_ORG/REPLACE_REPO/releases/tag/v0.1.0
