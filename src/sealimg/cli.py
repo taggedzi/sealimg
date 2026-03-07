@@ -12,6 +12,7 @@ from typing import Sequence
 from . import __version__
 from .config import SealimgConfig, dump_yaml_object, load_config, save_config
 from .crypto import CryptoError, generate_keypair, public_key_fingerprint
+from .gui import run_gui
 from .image_pipeline import ImagePipelineError
 from .metadata import MetadataFields
 from .timestamping import append_hash_line, build_hash_line, post_hash_line
@@ -168,6 +169,11 @@ def build_parser() -> argparse.ArgumentParser:
     inspect = subparsers.add_parser("inspect", help="Inspect image metadata and embed status")
     inspect.add_argument("image")
     inspect.add_argument("--json", action="store_true", help="Emit machine-readable JSON output")
+
+    gui = subparsers.add_parser("gui", help="Launch the local GUI")
+    gui.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH))
+    gui.add_argument("--profile", default=None)
+    gui.add_argument("--output-root", default=None)
 
     config = subparsers.add_parser("config", help="Set/view defaults")
     config_sub = config.add_subparsers(dest="config_command", required=True)
@@ -486,6 +492,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return 1
             print(f"Profile '{args.name}' saved.")
             return 0
+
+    if args.command == "gui":
+        return run_gui(
+            config_path=args.config_path,
+            default_profile=args.profile,
+            default_output_root=args.output_root,
+        )
 
     if args.command == "seal":
         config_path = Path(args.config_path).expanduser()

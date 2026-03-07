@@ -85,6 +85,12 @@ Prints metadata and embedded structures in plain English.
 sealimg inspect <image> [--json]
 ```
 
+### `sealimg gui`
+Launches the local desktop GUI for sealing workflows.
+```
+sealimg gui [--config-path PATH] [--profile NAME] [--output-root PATH]
+```
+
 ## Exit Codes
 - `0` success
 - `1` generic error
