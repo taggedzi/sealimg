@@ -244,4 +244,9 @@ This file converts [TODO.md](/mnt/e/Home/Documents/Programming/sealimg/TODO.md) 
 
 ## Bootstrap Automation
 - Use `scripts/bootstrap_github_project.sh` to create labels, milestones, and epics via GitHub CLI.
+- PowerShell-native option is `scripts/bootstrap_github_project.ps1`.
 - Run from repo root after `gh auth login`.
+- Examples:
+  - Bash: `scripts/bootstrap_github_project.sh`
+  - PowerShell: `.\scripts\bootstrap_github_project.ps1`
+  - Explicit repo: `.\scripts\bootstrap_github_project.ps1 -Repo taggedzi/sealimg`

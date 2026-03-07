@@ -7,6 +7,18 @@ This file is the operational handoff for future contributors and coding agents w
 - Primary implementation plan is tracked in `TODO.md`.
 - GitHub issue decomposition is tracked in `docs/github-issues-plan.md`.
 
+## Local Environment Notes
+- Primary (Windows/PowerShell) virtual environment is `./.venv`.
+- WSL/Ubuntu virtual environment is `./.ubuntu-venv`.
+- Preferred activation from repo root:
+  - Windows/PowerShell: `.\.venv\Scripts\Activate.ps1`
+  - Linux/WSL: `source .ubuntu-venv/bin/activate`
+- Use the active platform venv for dependency install, linting, and test execution.
+- Tool readiness confirmed:
+  - `git` installed
+  - `gh` installed and authenticated
+  - `pwsh` installed (`7.5.4`)
+
 ## Confirmed Decisions (Authoritative)
 1. Implementation stack: Python.
 2. Crypto strategy: native crypto libraries for core features, with optional GPG key import/use when users provide keys.
