@@ -27,6 +27,7 @@ from .ids import ImageIdGenerator
 from .image_pipeline import WebExportOptions, create_master_copy, create_web_copy, detect_format
 from .manifest import MANIFEST_SCHEMA_V1, ManifestV1
 from .metadata import MetadataFields, has_xmp
+from .phash import compute_phash
 from .profiles import merge_profile
 
 
@@ -42,6 +43,8 @@ class SealResult:
     sha_path: Path
     readme_path: Path
     zip_path: Path | None
+    master_phash: str
+    web_phash: str
     master_embed_status: EmbedStatus
     web_embed_status: EmbedStatus
 
@@ -52,6 +55,8 @@ class VerifyResult:
     signature_valid: bool
     key_id_match: bool
     hash_valid: bool
+    master_phash: str | None
+    web_phash: str | None
     master_embed_status: EmbedStatus
     web_embed_status: EmbedStatus
     sidecar_available: bool
@@ -64,6 +69,7 @@ class InspectResult:
     width: int
     height: int
     has_xmp: bool
+    phash: str
     embed_status: EmbedStatus
     artifact_embed_statuses: dict[str, EmbedStatus]
     sidecar_available: bool
@@ -139,6 +145,8 @@ def seal_image(
     )
     master_embed_status = attempt_embed_claim(master_path, manifest_path, enabled=embed_enabled)
     web_embed_status = attempt_embed_claim(web_path, manifest_path, enabled=embed_enabled)
+    master_phash = compute_phash(master_path)
+    web_phash = compute_phash(web_path)
 
     signer_key_id = public_key_fingerprint(public_key_path.read_bytes())
     manifest_payload = {
@@ -214,6 +222,8 @@ def seal_image(
         sha_path=sha_path,
         readme_path=readme_path,
         zip_path=zip_path,
+        master_phash=master_phash,
+        web_phash=web_phash,
         master_embed_status=master_embed_status,
         web_embed_status=web_embed_status,
     )
@@ -248,6 +258,8 @@ def verify_target(target: Path, public_key_path: Path) -> VerifyResult:
         and sha256_file(master) == manifest.files["master"]["sha256"]
         and sha256_file(web) == manifest.files["web"]["sha256"]
     )
+    master_phash = compute_phash(master) if master.exists() else None
+    web_phash = compute_phash(web) if web.exists() else None
     sidecar_available = manifest_path.exists() and sig_path.exists()
     master_embed_status = _inspect_artifact_embed_status(master)
     web_embed_status = _inspect_artifact_embed_status(web)
@@ -256,6 +268,8 @@ def verify_target(target: Path, public_key_path: Path) -> VerifyResult:
         signature_valid=signature_valid,
         key_id_match=key_id_match,
         hash_valid=hash_valid,
+        master_phash=master_phash,
+        web_phash=web_phash,
         master_embed_status=master_embed_status,
         web_embed_status=web_embed_status,
         sidecar_available=sidecar_available,
@@ -279,6 +293,7 @@ def inspect_image(path: Path) -> InspectResult:
         width=width,
         height=height,
         has_xmp=has_xmp(path),
+        phash=compute_phash(path),
         embed_status=inspect_embed_status(path),
         artifact_embed_statuses=artifact_embed_statuses,
         sidecar_available=sidecar_available,

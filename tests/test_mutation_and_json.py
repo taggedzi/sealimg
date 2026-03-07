@@ -115,6 +115,8 @@ def test_json_outputs_for_seal_verify_inspect(tmp_path: Path, capsys) -> None:
     assert seal_json["ok"] is True
     assert seal_json["count"] == 1
     seal_result = seal_json["results"][0]
+    assert len(seal_result["phash"]["master"]) == 16
+    assert len(seal_result["phash"]["web"]) == 16
     assert seal_result["embed"]["master"]["status"] == "embedded"
     assert seal_result["embed"]["web"]["status"] == "embedded"
     assert seal_result["sidecar"]["available"] is True
@@ -133,6 +135,8 @@ def test_json_outputs_for_seal_verify_inspect(tmp_path: Path, capsys) -> None:
     assert verify_json["signature_valid"] is True
     assert verify_json["key_id_match"] is True
     assert verify_json["hash_valid"] is True
+    assert len(verify_json["phash"]["master"]) == 16
+    assert len(verify_json["phash"]["web"]) == 16
     assert verify_json["embed"]["master"]["status"] == "detected"
     assert verify_json["embed"]["web"]["status"] == "detected"
     assert verify_json["sidecar"]["available"] is True
@@ -142,6 +146,7 @@ def test_json_outputs_for_seal_verify_inspect(tmp_path: Path, capsys) -> None:
     inspect_json = json.loads(capsys.readouterr().out)
     assert inspect_json["format"] == "jpeg"
     assert inspect_json["width"] > 0
+    assert len(inspect_json["phash"]) == 16
     assert inspect_json["embed"]["master"]["status"] == "detected"
     assert inspect_json["embed"]["web"]["status"] == "detected"
     assert inspect_json["sidecar"]["available"] is True
