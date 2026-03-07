@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import random
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -35,6 +37,44 @@ class WebExportOptions:
 class InvisibleWatermarkProvider(Protocol):
     def apply(self, image: object, payload: str) -> object:  # pragma: no cover - interface only
         ...
+
+
+class LsbInvisibleWatermarkProvider:
+    """Lightweight deterministic LSB watermark for JPEG web exports."""
+
+    def __init__(self, max_bits: int = 4096, strength: int = 4) -> None:
+        self.max_bits = max_bits
+        self.strength = max(1, strength)
+
+    def apply(self, image: object, payload: str) -> object:
+        width, height = image.size
+        capacity = width * height
+        if capacity == 0:
+            return image
+
+        bits = _payload_bits(payload)
+        bit_count = min(self.max_bits, capacity)
+        seed = int.from_bytes(hashlib.sha256(payload.encode("utf-8")).digest()[:8], "big")
+        rng = random.Random(seed)
+        pixels = image.load()
+
+        used: set[tuple[int, int]] = set()
+        bit_index = 0
+        while len(used) < bit_count:
+            x = rng.randrange(width)
+            y = rng.randrange(height)
+            if (x, y) in used:
+                continue
+            used.add((x, y))
+            r, g, b = pixels[x, y]
+            bit = bits[bit_index % len(bits)]
+            if bit == 1:
+                b = min(255, b + self.strength)
+            else:
+                b = max(0, b - self.strength)
+            pixels[x, y] = (r, g, b)
+            bit_index += 1
+        return image
 
 
 def detect_format(path: Path) -> str:
@@ -84,9 +124,9 @@ def create_web_copy(
         if (
             options.invisible_watermark_enabled
             and options.invisible_watermark_payload
-            and invisible_provider is not None
         ):
-            image = invisible_provider.apply(image, options.invisible_watermark_payload)
+            provider = invisible_provider or LsbInvisibleWatermarkProvider()
+            image = provider.apply(image, options.invisible_watermark_payload)
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         image.save(output_path, format="JPEG", quality=options.jpeg_quality, optimize=True)
@@ -126,3 +166,12 @@ def _apply_visible_watermark(
             draw.text((offset, height - 70), text, fill=(255, 255, 255, 70), font=font)
     else:
         draw.text((20, height - 40), text, fill=(255, 255, 255, 80), font=font)
+
+
+def _payload_bits(payload: str) -> list[int]:
+    digest = hashlib.sha256(payload.encode("utf-8")).digest()
+    bits: list[int] = []
+    for byte in digest:
+        for shift in range(7, -1, -1):
+            bits.append((byte >> shift) & 1)
+    return bits

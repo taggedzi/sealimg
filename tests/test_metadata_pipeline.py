@@ -1,4 +1,5 @@
 import importlib.util
+from hashlib import sha256
 from pathlib import Path
 
 import pytest
@@ -120,6 +121,51 @@ def test_invisible_watermark_provider_is_called(tmp_path: Path) -> None:
         invisible_provider=provider,
     )
     assert provider.called is True
+
+
+def test_default_invisible_watermark_changes_output(tmp_path: Path) -> None:
+    from PIL import Image
+
+    png_in = tmp_path / "input-textured.png"
+    textured = Image.new("RGB", (320, 200))
+    textured.putdata(
+        [
+            (
+                (x * 13 + y * 7) % 256,
+                (x * 5 + y * 11) % 256,
+                (x * 17 + y * 3) % 256,
+            )
+            for y in range(200)
+            for x in range(320)
+        ]
+    )
+    textured.save(png_in, format="PNG")
+    plain_out = tmp_path / "web-plain.jpg"
+    inv_out = tmp_path / "web-inv-default.jpg"
+
+    create_web_copy(
+        input_path=png_in,
+        output_path=plain_out,
+        metadata_fields=_sample_metadata(),
+        options=WebExportOptions(
+            long_edge=900,
+            visible_watermark_enabled=False,
+            invisible_watermark_enabled=False,
+        ),
+    )
+    create_web_copy(
+        input_path=png_in,
+        output_path=inv_out,
+        metadata_fields=_sample_metadata(),
+        options=WebExportOptions(
+            long_edge=900,
+            visible_watermark_enabled=False,
+            invisible_watermark_enabled=True,
+            invisible_watermark_payload="IMG-2026-03-07-0001",
+        ),
+    )
+
+    assert sha256(plain_out.read_bytes()).hexdigest() != sha256(inv_out.read_bytes()).hexdigest()
 
 
 def test_detect_format_for_png_and_jpeg(tmp_path: Path) -> None:

@@ -119,6 +119,8 @@ def seal_image(
     zip_path = output_dir / "provenance.zip" if bundle else None
 
     merged = merge_profile(profile_defaults, selected_profile, cli_overrides)
+    invisible_enabled = bool(merged.get("wm_invisible", {}).get("enabled", False))
+    invisible_payload = _resolve_invisible_payload(merged, image_id, invisible_enabled)
     create_master_copy(input_path=input_path, output_path=master_path, metadata_fields=metadata)
     create_web_copy(
         input_path=input_path,
@@ -130,10 +132,8 @@ def seal_image(
             visible_watermark_enabled=bool(merged.get("wm_visible", {}).get("enabled", True)),
             visible_watermark_text=str(merged.get("wm_visible", {}).get("text", "")),
             visible_watermark_style=str(merged.get("wm_visible", {}).get("style", "diag-low")),
-            invisible_watermark_enabled=bool(merged.get("wm_invisible", {}).get("enabled", False)),
-            invisible_watermark_payload=str(
-                merged.get("wm_invisible", {}).get("payload", image_id)
-            ),
+            invisible_watermark_enabled=invisible_enabled,
+            invisible_watermark_payload=invisible_payload,
         ),
     )
     master_embed_status = attempt_embed_claim(master_path, manifest_path, enabled=embed_enabled)
@@ -163,8 +163,8 @@ def seal_image(
                 "text": str(merged.get("wm_visible", {}).get("text", "")),
             },
             "invisible": {
-                "applied": bool(merged.get("wm_invisible", {}).get("enabled", False)),
-                "payload": merged.get("wm_invisible", {}).get("payload"),
+                "applied": invisible_enabled,
+                "payload": invisible_payload,
             },
         },
         "signature": {
@@ -315,3 +315,19 @@ def _inspect_embed_statuses_from_manifest(manifest_path: Path) -> dict[str, Embe
         "master": _inspect_artifact_embed_status(master),
         "web": _inspect_artifact_embed_status(web),
     }
+
+
+def _resolve_invisible_payload(
+    merged_profile: dict[str, Any],
+    image_id: str,
+    enabled: bool,
+) -> str | None:
+    wm_invisible = merged_profile.get("wm_invisible", {})
+    raw_payload = wm_invisible.get("payload")
+    if not enabled:
+        if raw_payload in (None, ""):
+            return None
+        return str(raw_payload)
+    if raw_payload in (None, ""):
+        return image_id
+    return str(raw_payload)
