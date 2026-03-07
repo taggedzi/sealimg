@@ -77,6 +77,16 @@ def embed_xmp(input_path: Path, output_path: Path, xmp_packet: bytes) -> None:
     raise MetadataError(f"Unsupported metadata target format: {ext}")
 
 
+def has_xmp(path: Path) -> bool:
+    ext = path.suffix.lower()
+    data = path.read_bytes()
+    if ext in {".jpg", ".jpeg"}:
+        return XMP_HEADER in data
+    if ext == ".png":
+        return b"XML:com.adobe.xmp" in data
+    return False
+
+
 def _embed_xmp_jpeg(input_path: Path, output_path: Path, xmp_packet: bytes) -> None:
     data = input_path.read_bytes()
     if len(data) < 4 or data[0:2] != b"\xff\xd8":

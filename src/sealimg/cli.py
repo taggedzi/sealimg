@@ -8,7 +8,40 @@ from pathlib import Path
 from typing import Sequence
 
 from . import __version__
+from .config import SealimgConfig, dump_yaml_object, load_config, save_config
 from .crypto import CryptoError, generate_keypair, public_key_fingerprint
+from .image_pipeline import ImagePipelineError
+from .metadata import MetadataFields
+from .workflow import (
+    derive_paths_from_config,
+    discover_input_images,
+    inspect_image,
+    seal_image,
+    verify_target,
+)
+
+DEFAULT_CONFIG_PATH = Path("~/.sealimg/config.yml").expanduser()
+
+
+def _default_config() -> SealimgConfig:
+    return SealimgConfig.from_dict(
+        {
+            "author": "Your Name",
+            "website": "https://yourdomain.example",
+            "license": "CC BY-NC 4.0",
+            "default_profile": "web",
+            "output_root": "./sealed",
+            "signing_key": "~/.sealimg/keys/sealimg_ed25519.key",
+            "profiles": {
+                "web": {
+                    "long_edge": 2560,
+                    "jpeg_quality": 82,
+                    "wm_visible": {"enabled": True, "text": "", "style": "diag-low"},
+                    "wm_invisible": {"enabled": False},
+                }
+            },
+        }
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -32,6 +65,8 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Private key passphrase (defaults to SEALIMG_PASSPHRASE env var)",
     )
+    keygen.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH), help="Config file path")
+    keygen.add_argument("--write-config", action="store_true", help="Write signing key to config")
 
     key = subparsers.add_parser("key", help="Key operations")
     key_sub = key.add_subparsers(dest="key_command", required=True)
@@ -40,10 +75,70 @@ def build_parser() -> argparse.ArgumentParser:
     key_show.add_argument("--fingerprint", action="store_true", help="Print fingerprint only")
     key_show.add_argument("--pubkey", action="store_true", help="Print public key only")
 
-    for name in ("seal", "verify", "inspect", "config", "profile"):
-        subparsers.add_parser(name, help=f"{name} command (scaffold)")
+    seal = subparsers.add_parser("seal", help="Seal image files")
+    seal.add_argument("paths", nargs="+")
+    seal.add_argument("--recursive", action="store_true")
+    seal.add_argument("--profile", default=None)
+    seal.add_argument("--wm-visible", choices=["on", "off"], default=None)
+    seal.add_argument("--wm-invisible", choices=["on", "off"], default=None)
+    seal.add_argument("--bundle", choices=["on", "off"], default="off")
+    seal.add_argument("--no-embed", action="store_true")
+    seal.add_argument("--id-prefix", default="IMG")
+    seal.add_argument("--author", default=None)
+    seal.add_argument("--site", default=None)
+    seal.add_argument("--license", dest="license_value", default=None)
+    seal.add_argument("--output-root", default=None)
+    seal.add_argument("--signing-key", default=None)
+    seal.add_argument("--passphrase", default=None)
+    seal.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH))
+
+    verify = subparsers.add_parser("verify", help="Verify a manifest/image")
+    verify.add_argument("target")
+    verify.add_argument("--pubkey", default=None)
+    verify.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH))
+
+    inspect = subparsers.add_parser("inspect", help="Inspect image metadata and embed status")
+    inspect.add_argument("image")
+
+    config = subparsers.add_parser("config", help="Set/view defaults")
+    config_sub = config.add_subparsers(dest="config_command", required=True)
+    config_set = config_sub.add_parser("set", help="Set config values")
+    config_set.add_argument("--author", default=None)
+    config_set.add_argument("--site", default=None)
+    config_set.add_argument("--license", dest="license_value", default=None)
+    config_set.add_argument("--output-root", default=None)
+    config_set.add_argument("--default-profile", default=None)
+    config_set.add_argument("--signing-key", default=None)
+    config_set.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH))
+    config_get = config_sub.add_parser("get", help="Print config")
+    config_get.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH))
+
+    profile = subparsers.add_parser("profile", help="Manage profiles")
+    profile_sub = profile.add_subparsers(dest="profile_command", required=True)
+    profile_list = profile_sub.add_parser("list", help="List profiles")
+    profile_list.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH))
+    profile_show = profile_sub.add_parser("show", help="Show profile")
+    profile_show.add_argument("name")
+    profile_show.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH))
+    profile_add = profile_sub.add_parser("add", help="Add or update profile")
+    profile_add.add_argument("name")
+    profile_add.add_argument("--long-edge", type=int, default=2560)
+    profile_add.add_argument("--quality", type=int, default=82)
+    profile_add.add_argument("--wm-visible", choices=["on", "off"], default="on")
+    profile_add.add_argument("--wm-invisible", choices=["on", "off"], default="off")
+    profile_add.add_argument("--wm-style", default="diag-low")
+    profile_add.add_argument("--wm-text", default="")
+    profile_add.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH))
 
     return parser
+
+
+def _load_or_init_config(config_path: Path) -> SealimgConfig:
+    if config_path.exists():
+        return load_config(config_path)
+    config = _default_config()
+    save_config(config_path, config)
+    return config
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -75,6 +170,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"Private key: {info.paths.private_key}")
         print(f"Public key: {info.paths.public_key}")
         print(f"Fingerprint: {info.fingerprint}")
+        if args.write_config:
+            config_path = Path(args.config_path).expanduser()
+            cfg = _load_or_init_config(config_path)
+            merged = cfg.to_dict()
+            merged["signing_key"] = str(info.paths.private_key)
+            save_config(config_path, SealimgConfig.from_dict(merged))
         return 0
 
     if args.command == "key":
@@ -96,8 +197,176 @@ def main(argv: Sequence[str] | None = None) -> int:
                     return 1
             return 0
 
-    print(f"Command '{args.command}' is scaffolded but not implemented yet.")
-    return 0
+    if args.command == "config":
+        config_path = Path(args.config_path).expanduser()
+        cfg = _load_or_init_config(config_path)
+        if args.config_command == "get":
+            print(dump_yaml_object(cfg.to_dict()), end="")
+            return 0
+        if args.config_command == "set":
+            data = cfg.to_dict()
+            if args.author:
+                data["author"] = args.author
+            if args.site:
+                data["website"] = args.site
+            if args.license_value:
+                data["license"] = args.license_value
+            if args.output_root:
+                data["output_root"] = args.output_root
+            if args.default_profile:
+                data["default_profile"] = args.default_profile
+            if args.signing_key:
+                data["signing_key"] = args.signing_key
+            updated = SealimgConfig.from_dict(data)
+            save_config(config_path, updated)
+            print(f"Config updated: {config_path}")
+            return 0
+
+    if args.command == "profile":
+        config_path = Path(args.config_path).expanduser()
+        cfg = _load_or_init_config(config_path)
+        if args.profile_command == "list":
+            for name in sorted(cfg.profiles):
+                print(name)
+            return 0
+        if args.profile_command == "show":
+            if args.name not in cfg.profiles:
+                print(f"Error: profile '{args.name}' not found.")
+                return 1
+            print(dump_yaml_object(cfg.profiles[args.name]), end="")
+            return 0
+        if args.profile_command == "add":
+            data = cfg.to_dict()
+            data["profiles"][args.name] = {
+                "long_edge": args.long_edge,
+                "jpeg_quality": args.quality,
+                "wm_visible": {
+                    "enabled": args.wm_visible == "on",
+                    "style": args.wm_style,
+                    "text": args.wm_text,
+                },
+                "wm_invisible": {"enabled": args.wm_invisible == "on"},
+            }
+            updated = SealimgConfig.from_dict(data)
+            save_config(config_path, updated)
+            print(f"Profile '{args.name}' saved.")
+            return 0
+
+    if args.command == "seal":
+        config_path = Path(args.config_path).expanduser()
+        cfg = _load_or_init_config(config_path)
+        passphrase = args.passphrase or os.environ.get("SEALIMG_PASSPHRASE")
+        if not passphrase:
+            print("Error: passphrase required (--passphrase or SEALIMG_PASSPHRASE).")
+            return 1
+        try:
+            signing_key, public_key = derive_paths_from_config(
+                cfg,
+                signing_key_override=args.signing_key,
+            )
+        except FileNotFoundError as exc:
+            print(f"Error: {exc}")
+            return 1
+
+        output_root = Path(args.output_root or cfg.output_root).expanduser()
+        profile_name = args.profile or cfg.default_profile
+        selected_profile = cfg.profiles.get(profile_name)
+        if selected_profile is None:
+            print(f"Error: profile '{profile_name}' not found.")
+            return 1
+        overrides = {}
+        if args.wm_visible:
+            overrides.setdefault("wm_visible", {})["enabled"] = args.wm_visible == "on"
+        if args.wm_invisible:
+            overrides.setdefault("wm_invisible", {})["enabled"] = args.wm_invisible == "on"
+
+        metadata = MetadataFields(
+            author=args.author or cfg.author,
+            website=args.site or cfg.website,
+            license=args.license_value or cfg.license,
+            copyright_notice=f"(c) {args.author or cfg.author}",
+        )
+        inputs = discover_input_images([Path(p) for p in args.paths], recursive=args.recursive)
+        if not inputs:
+            print("Error: no supported input images found.")
+            return 1
+
+        from .ids import ImageIdGenerator
+
+        id_gen = ImageIdGenerator(prefix=args.id_prefix)
+        exit_code = 0
+        for image in inputs:
+            try:
+                result = seal_image(
+                    input_path=image,
+                    output_root=output_root,
+                    id_generator=id_gen,
+                    metadata=metadata,
+                    profile_defaults=cfg.profiles.get("web", {}),
+                    selected_profile=selected_profile,
+                    cli_overrides=overrides,
+                    bundle=args.bundle == "on",
+                    embed_enabled=not args.no_embed,
+                    signing_key_path=signing_key,
+                    passphrase=passphrase,
+                    signer_name=metadata.author,
+                    public_key_path=public_key,
+                )
+                print(f"Sealed {image} -> {result.output_dir}")
+                print(f"Embed status: {result.embed_status.status} ({result.embed_status.message})")
+            except ImagePipelineError as exc:
+                print(f"Error: unsupported or invalid image '{image}': {exc}")
+                exit_code = 3
+            except Exception as exc:
+                print(f"Error sealing '{image}': {exc}")
+                exit_code = 1
+        return exit_code
+
+    if args.command == "verify":
+        pubkey = Path(args.pubkey).expanduser() if args.pubkey else None
+        if pubkey is None:
+            config_path = Path(args.config_path).expanduser()
+            cfg = _load_or_init_config(config_path)
+            key = Path(cfg.signing_key).expanduser()
+            pubkey = key.with_suffix(".pub")
+        if not pubkey.exists():
+            print("Error: public key not found. Provide --pubkey or configure signing_key.")
+            return 1
+        try:
+            result = verify_target(Path(args.target), pubkey)
+        except FileNotFoundError as exc:
+            print(f"Error: {exc}")
+            return 1
+        except Exception as exc:
+            print(f"Error: {exc}")
+            return 1
+
+        print(f"Manifest: {result.manifest_path}")
+        print(f"Signature: {'valid' if result.signature_valid else 'invalid'}")
+        print(f"Hashes: {'valid' if result.hash_valid else 'invalid'}")
+        print(f"Embed markers: {result.embed_status.status}")
+        if not result.signature_valid or not result.hash_valid:
+            return 2
+        return 0
+
+    if args.command == "inspect":
+        try:
+            result = inspect_image(Path(args.image))
+        except ImagePipelineError as exc:
+            print(f"Error: {exc}")
+            return 3
+        except Exception as exc:
+            print(f"Error: {exc}")
+            return 1
+        print(f"Path: {result.path}")
+        print(f"Format: {result.format}")
+        print(f"Size: {result.width}x{result.height}")
+        print(f"XMP: {'present' if result.has_xmp else 'absent'}")
+        print(f"Embed markers: {result.embed_status.status} ({result.embed_status.message})")
+        return 0
+
+    print(f"Command '{args.command}' is not implemented.")
+    return 1
 
 
 if __name__ == "__main__":

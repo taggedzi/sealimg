@@ -59,29 +59,29 @@ This TODO is derived from `README.md`, `docs/`, `design/`, and `specs/` and is i
   - [x] README.txt
 
 ## 5) C2PA / Embedding Strategy
-- [ ] Implement sidecar-first contract: always produce `manifest.json` + `manifest.sig`.
-- [ ] Implement best-effort embed attempt:
+- [x] Implement sidecar-first contract: always produce `manifest.json` + `manifest.sig`.
+- [x] Implement best-effort embed attempt:
   - [ ] JPEG JUMBF/APP11 path
   - [ ] PNG ancillary chunk path
-- [ ] Record embed success/failure in CLI output and inspect results.
-- [ ] Ensure sealing continues when embed fails (no hard failure unless explicitly requested).
-- [ ] Define adapter boundary for future AVIF/HEIC/JPEG XL.
+- [x] Record embed success/failure in CLI output and inspect results.
+- [x] Ensure sealing continues when embed fails (no hard failure unless explicitly requested).
+- [x] Define adapter boundary for future AVIF/HEIC/JPEG XL.
 
 ## 6) CLI Commands (MVP)
-- [ ] Implement `sealimg seal <paths...>`:
-  - [ ] files + directories + `--recursive`
-  - [ ] profile selection and overrides
-  - [ ] `--wm-visible`, `--wm-invisible`, `--bundle`, `--no-embed`, `--id-prefix`
-  - [ ] output under `/sealed/<image_id>/`
-- [ ] Implement `sealimg verify <image-or-manifest>`:
-  - [ ] signature validation
-  - [ ] hash matching
-  - [ ] embed presence/status
-  - [ ] clear pass/fail summary
-- [ ] Implement `sealimg inspect <image>` for plain-English metadata/provenance output.
-- [ ] Implement `sealimg config set/get`.
-- [ ] Implement `sealimg profile list/show/add`.
-- [ ] Implement documented exit codes: `0`, `1`, `2`, `3`.
+- [x] Implement `sealimg seal <paths...>`:
+  - [x] files + directories + `--recursive`
+  - [x] profile selection and overrides
+  - [x] `--wm-visible`, `--wm-invisible`, `--bundle`, `--no-embed`, `--id-prefix`
+  - [x] output under `/sealed/<image_id>/`
+- [x] Implement `sealimg verify <image-or-manifest>`:
+  - [x] signature validation
+  - [x] hash matching
+  - [x] embed presence/status
+  - [x] clear pass/fail summary
+- [x] Implement `sealimg inspect <image>` for plain-English metadata/provenance output.
+- [x] Implement `sealimg config set/get`.
+- [x] Implement `sealimg profile list/show/add`.
+- [x] Implement documented exit codes: `0`, `1`, `2`, `3`.
 
 ## 7) Reliability, Safety, and UX
 - [ ] Ensure private key/passphrase never printed or logged.
