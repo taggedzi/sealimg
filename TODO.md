@@ -99,16 +99,16 @@ This TODO is derived from `README.md`, `docs/`, `design/`, and `specs/` and is i
   - [x] signature validates with independent verifier
   - [x] tampered manifest fails verification
 - [ ] Metadata tests:
-  - [ ] IPTC/XMP mappings match `specs/iptc-xmp-mapping.md`
+  - [x] IPTC/XMP mappings match `specs/iptc-xmp-mapping.md`
 - [ ] Embed tests:
   - [x] embed success path (where library support exists)
   - [x] sidecar fallback path
 - [ ] Mutation tests:
-  - [ ] metadata stripped case still verifies via sidecar
+  - [x] metadata stripped case still verifies via sidecar
   - [x] modified file causes hash mismatch
 - [ ] Cross-platform tests:
-  - [ ] Windows/macOS/Linux paths
-  - [ ] non-ASCII filenames
+  - [x] Windows/macOS/Linux paths
+  - [x] non-ASCII filenames
 - [ ] Regression fixtures:
   - [x] golden manifest snapshots
   - [x] golden hashes/signatures

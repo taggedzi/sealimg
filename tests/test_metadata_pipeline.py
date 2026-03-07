@@ -44,6 +44,19 @@ def test_build_xmp_packet_contains_expected_fields() -> None:
     assert b"xmpRights:UsageTerms" in packet
 
 
+def test_xmp_packet_matches_iptc_xmp_mapping_spec() -> None:
+    packet = build_xmp_packet(_sample_metadata())
+    # Mapping coverage from specs/iptc-xmp-mapping.md
+    assert b"Iptc4xmpExt:WebStatement" in packet
+    assert b"dcterms:identifier" in packet
+    assert b"dc:creator" in packet
+    assert b"dc:rights" in packet
+    assert b"xmpRights:Marked" in packet
+    assert b"xmpRights:UsageTerms" in packet
+    assert b"dc:description" in packet
+    assert b"dc:title" in packet
+
+
 def test_create_master_copy_png_and_jpeg_embeds_xmp(tmp_path: Path) -> None:
     png_in, jpg_in = _make_source_images(tmp_path)
     fields = _sample_metadata()

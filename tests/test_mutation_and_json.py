@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from PIL import Image
+from PIL.PngImagePlugin import PngInfo
 
 from sealimg.cli import main
 
@@ -131,3 +132,16 @@ def test_json_outputs_for_seal_verify_inspect(tmp_path: Path, capsys) -> None:
     inspect_json = json.loads(capsys.readouterr().out)
     assert inspect_json["format"] == "jpeg"
     assert inspect_json["width"] > 0
+
+
+def test_metadata_stripped_copy_does_not_break_sidecar_verification(tmp_path: Path) -> None:
+    sealed_dir, _, public_key = _setup_sealed_artifact(tmp_path)
+    web = sealed_dir / "web.jpg"
+    stripped_copy = sealed_dir / "web-stripped.png"
+
+    with Image.open(web) as image:
+        image.save(stripped_copy, format="PNG", pnginfo=PngInfo())
+
+    # Sidecar verification still succeeds for the original sealed package.
+    rc = main(["verify", str(sealed_dir / "manifest.json"), "--pubkey", str(public_key)])
+    assert rc == 0
