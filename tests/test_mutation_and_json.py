@@ -115,6 +115,7 @@ def test_json_outputs_for_seal_verify_inspect(tmp_path: Path, capsys) -> None:
     assert seal_json["ok"] is True
     assert seal_json["count"] == 1
     seal_result = seal_json["results"][0]
+    assert seal_result["recipient_fingerprint"] is None
     assert len(seal_result["phash"]["master"]) == 16
     assert len(seal_result["phash"]["web"]) == 16
     assert seal_result["embed"]["master"]["status"] == "embedded"
@@ -258,3 +259,37 @@ def test_verify_json_reports_mixed_detected_states(tmp_path: Path, capsys, monke
     assert out["embed"]["master"]["status"] == "detected"
     assert out["embed"]["web"]["status"] == "none"
     assert out["sidecar"]["available"] is True
+
+
+def test_seal_recipient_id_generates_recipient_fingerprint(tmp_path: Path, capsys) -> None:
+    _, config_path, _ = _setup_sealed_artifact(tmp_path)
+    capsys.readouterr()
+    image_path = tmp_path / "recipient.png"
+    Image.new("RGB", (640, 420), color=(70, 80, 90)).save(image_path, format="PNG")
+
+    rc = main(
+        [
+            "seal",
+            str(image_path),
+            "--config-path",
+            str(config_path),
+            "--passphrase",
+            "test-passphrase",
+            "--wm-invisible",
+            "on",
+            "--recipient-id",
+            "buyer@example.test",
+            "--json",
+        ]
+    )
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    result = out["results"][0]
+    fingerprint = result["recipient_fingerprint"]
+    assert isinstance(fingerprint, str)
+    assert len(fingerprint) == 16
+
+    manifest = Path(result["manifest"])
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    assert payload["watermarks"]["invisible"]["recipient_fingerprint"] == fingerprint
+    assert payload["watermarks"]["invisible"]["payload"] == fingerprint

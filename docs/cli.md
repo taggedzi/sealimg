@@ -42,7 +42,7 @@ Seal images or folders.
 sealimg seal <paths...> [--recursive] [--profile NAME]
 [--wm-visible on|off] [--wm-invisible on|off]
 [--bundle on|off] [--no-embed] [--id-prefix "IMG-"]
-[--author "..."] [--site "..."] [--license "..."]
+[--author "..."] [--recipient-id "..."] [--site "..."] [--license "..."]
 [--output-root PATH] [--signing-key PATH]
 [--passphrase "..."] [--config-path PATH] [--json]
 [--timestamp-log PATH] [--timestamp-post-url URL]
@@ -58,11 +58,13 @@ Watch a directory and seal newly discovered images.
 sealimg watch <directory> [--recursive] [--profile NAME]
 [--wm-visible on|off] [--wm-invisible on|off]
 [--bundle on|off] [--no-embed] [--id-prefix "IMG-"]
-[--author "..."] [--site "..."] [--license "..."]
+[--author "..."] [--recipient-id "..."] [--site "..."] [--license "..."]
 [--output-root PATH] [--signing-key PATH] [--passphrase "..."]
 [--interval 2.0] [--once] [--json]
 [--timestamp-log PATH] [--timestamp-post-url URL]
 ```
+
+When `--recipient-id` is provided, Sealimg derives a deterministic per-image recipient fingerprint and stores it in `manifest.json` under `watermarks.invisible.recipient_fingerprint`.
 
 ### `sealimg verify`
 Verify a sealed image or manifest.
@@ -90,6 +92,6 @@ sealimg inspect <image> [--json]
 - `3` unsupported format
 
 ## Machine-Readable Output
-- `seal --json`: emits summary JSON with outputs per input plus per-artifact pHash values under `phash.master` and `phash.web`, per-artifact embed status under `embed.master` and `embed.web`, and sidecar availability under `sidecar.available`.
+- `seal --json`: emits summary JSON with outputs per input plus per-artifact pHash values under `phash.master` and `phash.web`, optional `recipient_fingerprint` when `--recipient-id` is supplied, per-artifact embed status under `embed.master` and `embed.web`, and sidecar availability under `sidecar.available`.
 - `verify --json`: emits signature/hash results plus per-artifact pHash values under `phash.master` and `phash.web`, per-artifact embed detection under `embed.master` and `embed.web`, and sidecar availability.
 - `inspect --json`: emits image format/size/metadata, a `phash` value for the inspected image, and package-aware embed status map under `embed` (typically `master` + `web` when sidecar is present), plus sidecar availability.
