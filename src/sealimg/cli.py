@@ -224,7 +224,7 @@ def _seal_inputs(
     passphrase: str,
     signing_key: Path,
     public_key: Path,
-) -> tuple[int, list[dict[str, object]]]:
+) -> tuple[int, list[dict[str, object]], list[dict[str, object]]]:
     output_root = Path(args.output_root or cfg.output_root).expanduser()
     profile_name = args.profile or cfg.default_profile
     selected_profile = cfg.profiles.get(profile_name)
@@ -249,6 +249,7 @@ def _seal_inputs(
     id_gen = ImageIdGenerator(prefix=args.id_prefix)
     exit_code = 0
     json_results: list[dict[str, object]] = []
+    json_errors: list[dict[str, object]] = []
     public_proof = _resolve_public_proof_reference(
         timestamp_log=args.timestamp_log,
         timestamp_post_url=args.timestamp_post_url,
@@ -338,15 +339,31 @@ def _seal_inputs(
                 if timestamp_line:
                     print(f"Timestamp line: {timestamp_line}")
         except ImagePipelineError as exc:
+            if args.json:
+                json_errors.append(
+                    {
+                        "input": str(image),
+                        "code": "image_pipeline_error",
+                        "message": _sanitize_error_text(str(exc)),
+                    }
+                )
             if not args.json:
                 _print_safe_error(f"unsupported or invalid image '{image}'", exc)
             exit_code = 3
         except Exception as exc:
+            if args.json:
+                json_errors.append(
+                    {
+                        "input": str(image),
+                        "code": "seal_failed",
+                        "message": _sanitize_error_text(str(exc), secrets=[passphrase]),
+                    }
+                )
             if not args.json:
                 _print_safe_error(f"sealing failed for '{image}'", exc, secrets=[passphrase])
             exit_code = 1
 
-    return exit_code, json_results
+    return exit_code, json_results, json_errors
 
 
 def _resolve_public_proof_reference(
@@ -525,7 +542,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             print("Error: no supported input images found.")
             return 1
 
-        exit_code, json_results = _seal_inputs(
+        exit_code, json_results, json_errors = _seal_inputs(
             inputs=inputs,
             cfg=cfg,
             args=args,
@@ -540,7 +557,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "ok": exit_code == 0,
                         "exit_code": exit_code,
                         "count": len(json_results),
+                        "error_count": len(json_errors),
                         "results": json_results,
+                        "errors": json_errors,
                     },
                     sort_keys=True,
                 )
@@ -574,6 +593,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         seen: set[Path] = set()
         all_results: list[dict[str, object]] = []
+        all_errors: list[dict[str, object]] = []
         exit_code = 0
         try:
             while True:
@@ -581,7 +601,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 fresh = [p for p in discovered if p not in seen]
                 seen.update(fresh)
                 if fresh:
-                    loop_exit, loop_results = _seal_inputs(
+                    loop_exit, loop_results, loop_errors = _seal_inputs(
                         inputs=fresh,
                         cfg=cfg,
                         args=args,
@@ -591,6 +611,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     )
                     exit_code = max(exit_code, loop_exit)
                     all_results.extend(loop_results)
+                    all_errors.extend(loop_errors)
                 if args.once:
                     break
                 time.sleep(max(0.2, args.interval))
@@ -604,7 +625,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "ok": exit_code == 0,
                         "exit_code": exit_code,
                         "count": len(all_results),
+                        "error_count": len(all_errors),
                         "results": all_results,
+                        "errors": all_errors,
                     },
                     sort_keys=True,
                 )
