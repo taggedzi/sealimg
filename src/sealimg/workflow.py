@@ -25,7 +25,13 @@ from .c2pa import EmbedStatus, attempt_embed_claim, inspect_embed_status
 from .config import SealimgConfig
 from .crypto import public_key_fingerprint, verify_file
 from .ids import ImageIdGenerator
-from .image_pipeline import WebExportOptions, create_master_copy, create_web_copy, detect_format
+from .image_pipeline import (
+    SUPPORTED_EXTENSIONS,
+    WebExportOptions,
+    create_master_copy,
+    create_web_copy,
+    detect_format,
+)
 from .manifest import MANIFEST_SCHEMA_V1, ManifestV1
 from .metadata import MetadataFields, has_xmp
 from .phash import compute_phash
@@ -90,7 +96,7 @@ def discover_input_images(paths: list[Path], recursive: bool) -> list[Path]:
         else:
             candidates = sorted(p for p in path.iterdir() if p.is_file())
         for candidate in candidates:
-            if candidate.suffix.lower() in {".png", ".jpg", ".jpeg"}:
+            if candidate.suffix.lower() in SUPPORTED_EXTENSIONS:
                 out.append(candidate)
     return out
 
@@ -119,7 +125,7 @@ def seal_image(
     output_dir = output_root / image_id
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    source_ext = ".jpg" if input_path.suffix.lower() in {".jpg", ".jpeg"} else ".png"
+    source_ext = _resolve_master_extension(input_path)
     master_path = output_dir / f"master{source_ext}"
     web_path = output_dir / "web.jpg"
     manifest_path = output_dir / "manifest.json"
@@ -372,3 +378,12 @@ def _derive_recipient_fingerprint(recipient_id: str | None, image_id: str) -> st
         return None
     token = f"{recipient_id.strip()}::{image_id}".encode("utf-8")
     return hashlib.sha256(token).hexdigest()[:16]
+
+
+def _resolve_master_extension(input_path: Path) -> str:
+    ext = input_path.suffix.lower()
+    if ext in {".jpg", ".jpeg"}:
+        return ".jpg"
+    if ext in SUPPORTED_EXTENSIONS:
+        return ext
+    return ".png"

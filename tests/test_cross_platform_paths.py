@@ -24,6 +24,23 @@ def test_discover_input_images_handles_nested_and_non_ascii_names(tmp_path: Path
     assert img2 in recursive
 
 
+def test_discover_input_images_includes_v07_extensions(tmp_path: Path) -> None:
+    base = tmp_path / "formats"
+    base.mkdir()
+    avif = base / "clip.avif"
+    heic = base / "clip.heic"
+    heif = base / "clip.heif"
+    jxl = base / "clip.jxl"
+    for p in (avif, heic, heif, jxl):
+        p.write_bytes(b"placeholder")
+
+    discovered = discover_input_images([base], recursive=False)
+    assert avif in discovered
+    assert heic in discovered
+    assert heif in discovered
+    assert jxl in discovered
+
+
 def test_seal_supports_non_ascii_input_filename(tmp_path: Path) -> None:
     config_path = tmp_path / "config.yml"
     image_path = tmp_path / "艺术作品.png"

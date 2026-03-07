@@ -17,8 +17,8 @@
 |---|---|---|
 | PNG | Yes | Yes (best-effort `iTXt` marker) |
 | JPEG | Yes | Yes (best-effort APP11 marker) |
-| AVIF/HEIC | No (not yet implemented) | No (not yet implemented) |
-| JPEG XL | No (not yet implemented) | No (not yet implemented) |
+| AVIF/HEIC | Yes (sidecar-first; master passthrough) | No (not yet implemented) |
+| JPEG XL | Yes (sidecar-first; master passthrough) | No (not yet implemented) |
 
 ## Metadata (IPTC/XMP)
 - Author, Website, License, Copyright Notice

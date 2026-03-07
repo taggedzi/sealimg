@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import hashlib
 import random
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
 from .metadata import MetadataFields, build_xmp_packet, embed_xmp
+
+SUPPORTED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".avif", ".heic", ".heif", ".jxl"}
 
 
 class ImagePipelineError(RuntimeError):
@@ -83,6 +86,12 @@ def detect_format(path: Path) -> str:
         return "png"
     if ext in {".jpg", ".jpeg"}:
         return "jpeg"
+    if ext == ".avif":
+        return "avif"
+    if ext in {".heic", ".heif"}:
+        return "heic"
+    if ext == ".jxl":
+        return "jxl"
     raise ImagePipelineError(f"Unsupported image format: {ext}")
 
 
@@ -92,6 +101,11 @@ def create_master_copy(
     metadata_fields: MetadataFields,
 ) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    fmt = detect_format(input_path)
+    if fmt not in {"png", "jpeg"}:
+        # Sidecar-first fallback for formats without local metadata writer support.
+        shutil.copy2(input_path, output_path)
+        return
     xmp = build_xmp_packet(metadata_fields)
     embed_xmp(input_path=input_path, output_path=output_path, xmp_packet=xmp)
 
