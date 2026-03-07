@@ -440,6 +440,20 @@ def run_gui(
                 if payload:
                     count = payload.get("count", 0)
                     ok = payload.get("ok", False)
+                    errors = payload.get("errors", [])
+                    if isinstance(errors, list):
+                        for err in errors:
+                            if not isinstance(err, dict):
+                                continue
+                            path = err.get("input", "<unknown>")
+                            code = err.get("code", "error")
+                            msg = err.get("message", "")
+                            root.after(
+                                0,
+                                lambda path=path, code=code, msg=msg: _append(
+                                    f"Error [{code}] {path}: {msg}"
+                                ),
+                            )
                     root.after(
                         0,
                         lambda: _append(

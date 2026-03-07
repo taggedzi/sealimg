@@ -153,6 +153,33 @@ def test_json_outputs_for_seal_verify_inspect(tmp_path: Path, capsys) -> None:
     assert inspect_json["sidecar"]["available"] is True
 
 
+def test_seal_json_includes_per_image_errors(tmp_path: Path, capsys) -> None:
+    _, config_path, _ = _setup_sealed_artifact(tmp_path)
+    capsys.readouterr()
+    bad_jpg = tmp_path / "bad.jpg"
+    bad_jpg.write_text("not-an-image", encoding="utf-8")
+
+    rc = main(
+        [
+            "seal",
+            str(bad_jpg),
+            "--config-path",
+            str(config_path),
+            "--passphrase",
+            "test-passphrase",
+            "--json",
+        ]
+    )
+    assert rc == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is False
+    assert payload["count"] == 0
+    assert payload["error_count"] == 1
+    assert payload["results"] == []
+    assert payload["errors"][0]["input"] == str(bad_jpg)
+    assert payload["errors"][0]["code"] == "seal_failed"
+
+
 def test_metadata_stripped_copy_does_not_break_sidecar_verification(tmp_path: Path) -> None:
     sealed_dir, _, public_key = _setup_sealed_artifact(tmp_path)
     web = sealed_dir / "web.jpg"
