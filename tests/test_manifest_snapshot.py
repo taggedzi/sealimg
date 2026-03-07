@@ -54,6 +54,7 @@ def test_manifest_matches_golden_snapshot(tmp_path: Path) -> None:
         passphrase="test-passphrase",
         signer_name="Tester",
         public_key_path=key_info.paths.public_key,
+        artifact_naming="legacy",
         image_id_override="IMG-TEST-0001",
     )
 
@@ -98,6 +99,7 @@ def test_manifest_uses_image_id_for_invisible_payload_when_enabled(tmp_path: Pat
         passphrase="test-passphrase",
         signer_name="Tester",
         public_key_path=key_info.paths.public_key,
+        artifact_naming="legacy",
         image_id_override="IMG-TEST-0002",
     )
     payload = json.loads(result.manifest_path.read_text(encoding="utf-8"))
@@ -140,6 +142,7 @@ def test_manifest_uses_owner_payload_when_mode_owner(tmp_path: Path) -> None:
         passphrase="test-passphrase",
         signer_name="Tester",
         public_key_path=key_info.paths.public_key,
+        artifact_naming="legacy",
         image_id_override="IMG-TEST-0003",
     )
     payload = json.loads(result.manifest_path.read_text(encoding="utf-8"))

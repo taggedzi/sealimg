@@ -42,8 +42,8 @@ Outputs (example):
 
 ```
 sealed/IMG-2025-10-15-0001/
-  master.jpg
-  web.jpg
+  source_IMG-2025-10-15-0001_master.jpg
+  source_IMG-2025-10-15-0001_web.jpg
   manifest.json
   manifest.sig
   sha256.txt

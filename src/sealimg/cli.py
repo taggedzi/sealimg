@@ -64,6 +64,7 @@ def _default_config() -> SealimgConfig:
             "default_profile": "web",
             "output_root": "./sealed",
             "signing_key": "~/.sealimg/keys/sealimg_ed25519.key",
+            "artifact_naming": "source-id",
             "profiles": {
                 "web": {
                     "long_edge": 2560,
@@ -204,6 +205,7 @@ def build_parser() -> argparse.ArgumentParser:
     config_set.add_argument("--output-root", default=None)
     config_set.add_argument("--default-profile", default=None)
     config_set.add_argument("--signing-key", default=None)
+    config_set.add_argument("--artifact-naming", choices=["legacy", "source-id"], default=None)
     config_set.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH))
     config_get = config_sub.add_parser("get", help="Print config")
     config_get.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH))
@@ -298,6 +300,7 @@ def _seal_inputs(
                 passphrase=passphrase,
                 signer_name=metadata.author,
                 public_key_path=public_key,
+                artifact_naming=cfg.artifact_naming,
                 recipient_id=args.recipient_id,
                 public_proof=public_proof,
             )
@@ -495,6 +498,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 data["default_profile"] = args.default_profile
             if args.signing_key:
                 data["signing_key"] = args.signing_key
+            if args.artifact_naming:
+                data["artifact_naming"] = args.artifact_naming
             updated = SealimgConfig.from_dict(data)
             try:
                 save_config(config_path, updated)

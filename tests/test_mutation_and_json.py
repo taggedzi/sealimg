@@ -74,9 +74,16 @@ def _setup_sealed_artifact(tmp_path: Path) -> tuple[Path, Path, Path]:
     return sealed_dir, config_path, public_key
 
 
+def _artifact_paths(sealed_dir: Path) -> tuple[Path, Path]:
+    manifest = json.loads((sealed_dir / "manifest.json").read_text(encoding="utf-8"))
+    master = sealed_dir / manifest["files"]["master"]["path"]
+    web = sealed_dir / manifest["files"]["web"]["path"]
+    return master, web
+
+
 def test_verify_returns_code_2_on_modified_file(tmp_path: Path) -> None:
     sealed_dir, _, public_key = _setup_sealed_artifact(tmp_path)
-    web_path = sealed_dir / "web.jpg"
+    _, web_path = _artifact_paths(sealed_dir)
     web_path.write_bytes(web_path.read_bytes() + b"tampered")
 
     rc = main(["verify", str(sealed_dir / "manifest.json"), "--pubkey", str(public_key)])
@@ -142,7 +149,8 @@ def test_json_outputs_for_seal_verify_inspect(tmp_path: Path, capsys) -> None:
     assert verify_json["embed"]["web"]["status"] == "detected"
     assert verify_json["sidecar"]["available"] is True
 
-    rc = main(["inspect", str(sealed_dir / "web.jpg"), "--json"])
+    _, web_artifact = _artifact_paths(sealed_dir)
+    rc = main(["inspect", str(web_artifact), "--json"])
     assert rc == 0
     inspect_json = json.loads(capsys.readouterr().out)
     assert inspect_json["format"] == "jpeg"
@@ -242,7 +250,7 @@ def test_seal_json_includes_per_image_errors(tmp_path: Path, capsys) -> None:
 
 def test_metadata_stripped_copy_does_not_break_sidecar_verification(tmp_path: Path) -> None:
     sealed_dir, _, public_key = _setup_sealed_artifact(tmp_path)
-    web = sealed_dir / "web.jpg"
+    _, web = _artifact_paths(sealed_dir)
     stripped_png = sealed_dir / "web-stripped.png"
     stripped_jpg = sealed_dir / "web-stripped.jpg"
 
@@ -297,7 +305,7 @@ def test_seal_json_reports_mixed_embed_outcomes(tmp_path: Path, capsys, monkeypa
     Image.new("RGB", (500, 320), color=(10, 30, 50)).save(image_path, format="PNG")
 
     def fake_attempt_embed(image_path: Path, *_: object, **__: object) -> EmbedStatus:
-        if image_path.name.startswith("master"):
+        if "_master" in image_path.name:
             return EmbedStatus(status="embedded", message="master embed ok")
         return EmbedStatus(status="failed", message="web fallback to sidecar")
 
@@ -327,7 +335,7 @@ def test_verify_json_reports_mixed_detected_states(tmp_path: Path, capsys, monke
     capsys.readouterr()
 
     def fake_inspect(path: Path) -> EmbedStatus:
-        if path.name.startswith("master"):
+        if "_master" in path.name:
             return EmbedStatus(status="detected", message="master marker present")
         return EmbedStatus(status="none", message="web marker absent")
 

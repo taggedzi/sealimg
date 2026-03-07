@@ -19,6 +19,7 @@ class SealimgConfig:
     default_profile: str
     output_root: str
     signing_key: str
+    artifact_naming: str = "source-id"
     profiles: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     @classmethod
@@ -53,6 +54,10 @@ class SealimgConfig:
         if payload["default_profile"] not in profiles:
             raise ConfigError("default_profile must reference a profile in profiles")
 
+        artifact_naming = str(payload.get("artifact_naming", "source-id")).strip().lower()
+        if artifact_naming not in {"legacy", "source-id"}:
+            raise ConfigError("artifact_naming must be one of: legacy, source-id")
+
         return cls(
             author=payload["author"],
             website=payload["website"],
@@ -60,6 +65,7 @@ class SealimgConfig:
             default_profile=payload["default_profile"],
             output_root=payload["output_root"],
             signing_key=payload["signing_key"],
+            artifact_naming=artifact_naming,
             profiles=profiles,
         )
 
@@ -71,6 +77,7 @@ class SealimgConfig:
             "default_profile": self.default_profile,
             "output_root": self.output_root,
             "signing_key": self.signing_key,
+            "artifact_naming": self.artifact_naming,
             "profiles": self.profiles,
         }
 

@@ -10,6 +10,7 @@ Default: `~/.sealimg/config.yml`
 - `default_profile`: profile name for `sealimg seal`.
 - `output_root`: where sealed folders are written.
 - `signing_key`: path to encrypted private key.
+- `artifact_naming`: output artifact naming strategy (`source-id` or `legacy`).
 
 ### Example
 ```yaml
@@ -19,6 +20,7 @@ license: "CC BY-NC 4.0"
 default_profile: "web"
 output_root: "./sealed"
 signing_key: "~/.sealimg/keys/matthew_ed25519.key"
+artifact_naming: "source-id"
 profiles:
   web:
     long_edge: 2560

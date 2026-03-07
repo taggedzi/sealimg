@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from PIL import Image
@@ -107,8 +108,14 @@ def test_seal_verify_and_inspect_flow(tmp_path: Path) -> None:
     assert len(sealed_dirs) == 1
     sealed_dir = sealed_dirs[0]
     manifest = sealed_dir / "manifest.json"
-    web_image = sealed_dir / "web.jpg"
     assert manifest.exists()
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    web_image = sealed_dir / payload["files"]["web"]["path"]
+    master_image = sealed_dir / payload["files"]["master"]["path"]
+    assert web_image.exists()
+    assert master_image.exists()
+    assert "_web.jpg" in web_image.name
+    assert "_master" in master_image.stem
     assert (sealed_dir / "manifest.sig").exists()
     assert (sealed_dir / "sha256.txt").exists()
     assert (sealed_dir / "README.txt").exists()

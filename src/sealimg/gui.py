@@ -564,7 +564,7 @@ def run_gui(
 
         win = tk.Toplevel(root)
         win.title("Settings")
-        win.geometry("760x300")
+        win.geometry("760x340")
         win.transient(root)
         win.grab_set()
 
@@ -577,6 +577,7 @@ def run_gui(
         default_profile_var = tk.StringVar(value=cfg.default_profile)
         output_root_cfg_var = tk.StringVar(value=cfg.output_root)
         signing_key_var = tk.StringVar(value=cfg.signing_key)
+        artifact_naming_var = tk.StringVar(value=cfg.artifact_naming)
         profile_names = sorted(cfg.profiles.keys())
 
         ttk.Label(body, text="Author *").grid(row=0, column=0, sticky="w")
@@ -607,6 +608,14 @@ def run_gui(
         ttk.Entry(body, textvariable=signing_key_var, width=58).grid(
             row=5, column=1, sticky="ew", padx=6
         )
+        ttk.Label(body, text="Artifact naming *").grid(row=6, column=0, sticky="w")
+        ttk.Combobox(
+            body,
+            state="readonly",
+            values=("source-id", "legacy"),
+            textvariable=artifact_naming_var,
+            width=24,
+        ).grid(row=6, column=1, sticky="w", padx=6)
 
         def _browse_signing_key() -> None:
             current = signing_key_var.get().strip()
@@ -626,7 +635,7 @@ def run_gui(
         body.columnconfigure(1, weight=1)
 
         btns_local = ttk.Frame(body)
-        btns_local.grid(row=6, column=0, columnspan=3, sticky="w", pady=(12, 0))
+        btns_local.grid(row=7, column=0, columnspan=3, sticky="w", pady=(12, 0))
 
         def _save_settings() -> None:
             author = author_var.get().strip()
@@ -635,6 +644,7 @@ def run_gui(
             default_profile = default_profile_var.get().strip()
             output_root_cfg = output_root_cfg_var.get().strip()
             signing_key = signing_key_var.get().strip()
+            artifact_naming = artifact_naming_var.get().strip()
 
             if not author:
                 messagebox.showerror("Sealimg", "Author is required.", parent=win)
@@ -661,6 +671,9 @@ def run_gui(
             if not signing_key:
                 messagebox.showerror("Sealimg", "Signing key is required.", parent=win)
                 return
+            if artifact_naming not in {"source-id", "legacy"}:
+                messagebox.showerror("Sealimg", "Artifact naming is required.", parent=win)
+                return
 
             data = cfg.to_dict()
             data["author"] = author
@@ -669,6 +682,7 @@ def run_gui(
             data["default_profile"] = default_profile
             data["output_root"] = output_root_cfg
             data["signing_key"] = signing_key
+            data["artifact_naming"] = artifact_naming
             try:
                 save_config(Path(cfg_path).expanduser(), SealimgConfig.from_dict(data))
             except Exception as exc:
