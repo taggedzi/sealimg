@@ -124,8 +124,8 @@ This TODO is derived from `README.md`, `docs/`, `design/`, and `specs/` and is i
 - [x] v0.1: CLI + PNG/JPEG + metadata + signed manifest + verify + config/profiles.
 - [x] v0.3: C2PA best-effort embed + provenance ZIP + watch/batch.
 - [x] v0.5: invisible watermark + public timestamp helper.
-- [ ] v0.7: AVIF/HEIC/JPEG XL + recipient fingerprinting + pHash.
-- [ ] v1.0: GUI + integration guides.
+- [x] v0.7: AVIF/HEIC/JPEG XL + recipient fingerprinting + pHash.
+- [x] v1.0: GUI + integration guides.
 
 ## Decisions Needed Before Implementation Starts
 - [x] Select implementation stack (language/runtime and packaging target): Python.
