@@ -172,3 +172,26 @@ def test_detect_format_for_png_and_jpeg(tmp_path: Path) -> None:
     png_in, jpg_in = _make_source_images(tmp_path)
     assert detect_format(png_in) == "png"
     assert detect_format(jpg_in) == "jpeg"
+
+
+def test_detect_format_supports_v07_extensions(tmp_path: Path) -> None:
+    avif = tmp_path / "sample.avif"
+    heic = tmp_path / "sample.heic"
+    heif = tmp_path / "sample.heif"
+    jxl = tmp_path / "sample.jxl"
+    for p in (avif, heic, heif, jxl):
+        p.write_bytes(b"not-real-image")
+
+    assert detect_format(avif) == "avif"
+    assert detect_format(heic) == "heic"
+    assert detect_format(heif) == "heic"
+    assert detect_format(jxl) == "jxl"
+
+
+def test_master_copy_passthrough_for_v07_formats(tmp_path: Path) -> None:
+    source = tmp_path / "sample.avif"
+    source.write_bytes(b"avif-bytes-placeholder")
+    out = tmp_path / "master.avif"
+
+    create_master_copy(source, out, _sample_metadata())
+    assert out.read_bytes() == source.read_bytes()
