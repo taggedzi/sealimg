@@ -7,10 +7,13 @@ import contextlib
 import importlib.util
 import io
 import json
+import platform
+import sys
 import threading
 from pathlib import Path
 from typing import Sequence
 
+from . import __version__
 from .config import SealimgConfig, load_config, save_config
 
 VISIBLE_WATERMARK_STYLES = ("diag-low", "flat")
@@ -293,6 +296,19 @@ def normalize_visible_style(style: str) -> str:
     if value in VISIBLE_WATERMARK_STYLES:
         return value
     return "flat"
+
+
+def collect_about_info(config_path: str) -> dict[str, str]:
+    return {
+        "Sealimg version": __version__,
+        "Python version": platform.python_version(),
+        "Python implementation": platform.python_implementation(),
+        "Platform": platform.platform(),
+        "OS": f"{platform.system()} {platform.release()}",
+        "Executable": sys.executable,
+        "TkinterDnD2": "installed" if has_tkinterdnd2() else "not installed",
+        "Config path": str(Path(config_path).expanduser()),
+    }
 
 
 def build_gui_parser() -> argparse.ArgumentParser:
@@ -697,6 +713,43 @@ def run_gui(
         ttk.Button(btns_local, text="Save", command=_save_settings).pack(side="left")
         ttk.Button(btns_local, text="Close", command=win.destroy).pack(side="left", padx=6)
 
+    def _open_about_modal() -> None:
+        info = collect_about_info(config_var.get())
+        try:
+            info["Tk version"] = str(root.tk.call("info", "patchlevel"))
+        except Exception:
+            info["Tk version"] = "unknown"
+        body_text = "\n".join(f"{key}: {value}" for key, value in info.items())
+
+        win = tk.Toplevel(root)
+        win.title("About Sealimg")
+        win.geometry("760x320")
+        win.transient(root)
+        win.grab_set()
+
+        body = ttk.Frame(win, padding=10)
+        body.pack(fill="both", expand=True)
+        ttk.Label(
+            body,
+            text="Share this information when reporting bugs or requesting support.",
+        ).pack(anchor="w")
+
+        details = tk.Text(body, height=12, wrap="word")
+        details.pack(fill="both", expand=True, pady=(8, 0))
+        details.insert("1.0", body_text)
+        details.configure(state="disabled")
+
+        btns_local = ttk.Frame(body)
+        btns_local.pack(fill="x", pady=(10, 0))
+
+        def _copy_details() -> None:
+            root.clipboard_clear()
+            root.clipboard_append(body_text)
+            _append("Copied About details to clipboard.")
+
+        ttk.Button(btns_local, text="Copy", command=_copy_details).pack(side="left")
+        ttk.Button(btns_local, text="Close", command=win.destroy).pack(side="left", padx=6)
+
     def _open_profile_manager() -> None:
         cfg_path = config_var.get().strip()
         try:
@@ -903,6 +956,9 @@ def run_gui(
 
     ttk.Button(controls, text="Settings...", command=_open_settings_modal).grid(
         row=0, column=3, sticky="w", padx=(6, 0)
+    )
+    ttk.Button(controls, text="About...", command=_open_about_modal).grid(
+        row=0, column=4, sticky="w", padx=(6, 0)
     )
     ttk.Button(controls, text="Manage...", command=_open_profile_manager).grid(
         row=1, column=2, sticky="w"

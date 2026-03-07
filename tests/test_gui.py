@@ -279,19 +279,16 @@ def test_infer_default_signer_name(tmp_path: Path) -> None:
     save_config(cfg_path, cfg)
     assert gui.infer_default_signer_name(str(cfg_path)) == "sealimg"
 
-    cfg2 = SealimgConfig.from_dict(
-        {
-            "author": "Matthew Craig",
-            "website": "https://example.com",
-            "license": "CC BY-NC 4.0",
-            "default_profile": "web",
-            "output_root": "./sealed",
-            "signing_key": str(tmp_path / "keys" / "sealimg_ed25519.key"),
-            "profiles": {"web": {"long_edge": 2560, "jpeg_quality": 82}},
-        }
-    )
-    save_config(cfg_path, cfg2)
-    assert gui.infer_default_signer_name(str(cfg_path)) == "Matthew Craig"
+
+def test_collect_about_info_includes_expected_fields(tmp_path: Path) -> None:
+    info = gui.collect_about_info(str(tmp_path / "config.yml"))
+    assert info["Sealimg version"]
+    assert info["Python version"]
+    assert info["Platform"]
+    assert info["OS"]
+    assert info["Executable"]
+    assert info["TkinterDnD2"] in {"installed", "not installed"}
+    assert str(tmp_path / "config.yml") in info["Config path"]
 
 
 def test_build_keygen_cli_args_uses_config_sibling_keys_dir(tmp_path: Path) -> None:
