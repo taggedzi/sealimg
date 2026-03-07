@@ -94,6 +94,8 @@ Standalone entrypoint (same behavior):
 ```
 sealimg-gui [--config-path PATH] [--profile NAME] [--output-root PATH]
 ```
+If the selected config has no signing key yet, the GUI prompts to generate an Ed25519 key and
+updates config automatically before sealing.
 
 ## Exit Codes
 - `0` success
