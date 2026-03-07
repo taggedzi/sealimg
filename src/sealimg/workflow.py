@@ -119,6 +119,7 @@ def seal_image(
     passphrase: str,
     signer_name: str,
     public_key_path: Path,
+    artifact_naming: str = "source-id",
     recipient_id: str | None = None,
     public_proof: str | None = None,
     image_id_override: str | None = None,
@@ -129,8 +130,15 @@ def seal_image(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     source_ext = _resolve_master_extension(input_path)
-    master_path = output_dir / f"master{source_ext}"
-    web_path = output_dir / "web.jpg"
+    stem = _slugify_filename_stem(input_path.stem)
+    master_name, web_name = _resolve_artifact_names(
+        stem=stem,
+        image_id=image_id,
+        source_ext=source_ext,
+        strategy=artifact_naming,
+    )
+    master_path = output_dir / master_name
+    web_path = output_dir / web_name
     manifest_path = output_dir / "manifest.json"
     signature_path = output_dir / "manifest.sig"
     sha_path = output_dir / "sha256.txt"
@@ -489,3 +497,27 @@ def _resolve_master_extension(input_path: Path) -> str:
     if ext in SUPPORTED_EXTENSIONS:
         return ext
     return ".png"
+
+
+def _slugify_filename_stem(stem: str) -> str:
+    cleaned = "".join(ch if ch.isalnum() else "-" for ch in stem.strip().lower())
+    collapsed = "-".join(part for part in cleaned.split("-") if part)
+    return collapsed or "image"
+
+
+def _resolve_artifact_names(
+    *,
+    stem: str,
+    image_id: str,
+    source_ext: str,
+    strategy: str,
+) -> tuple[str, str]:
+    mode = str(strategy).strip().lower()
+    if mode == "legacy":
+        return (f"master{source_ext}", "web.jpg")
+    if mode == "source-id":
+        return (
+            f"{stem}_{image_id}_master{source_ext}",
+            f"{stem}_{image_id}_web.jpg",
+        )
+    raise ValueError("artifact_naming must be one of: legacy, source-id")

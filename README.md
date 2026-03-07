@@ -121,8 +121,8 @@
     "tools": ["GIMP", "Krita"]
   },
   "files": {
-    "master": {"path": "master.png", "sha256": "<hex>"},
-    "web": {"path": "web.jpg", "sha256": "<hex>"}
+    "master": {"path": "source_IMG-2026-03-07-0001_master.png", "sha256": "<hex>"},
+    "web": {"path": "source_IMG-2026-03-07-0001_web.jpg", "sha256": "<hex>"}
   },
   "watermarks": {
     "visible": {"applied": true, "style": "diag-low", "text": "© Matthew Craig • taggedz.me"},
@@ -197,6 +197,7 @@ license: "CC BY-NC 4.0"
 default_profile: "web"
 output_root: "./sealed"
 signing_key: "~/.sealimg/keys/matthew_ed25519.key"
+artifact_naming: "source-id"
 profiles:
   web:
     long_edge: 2560

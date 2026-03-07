@@ -11,8 +11,8 @@ Each sealed image has a human-readable `manifest.json` that is also signed (`man
   "website": "https://yourdomain.example",
   "license": "CC BY-NC 4.0",
   "files": {
-    "master": {"path": "master.png", "sha256": "<hex>"},
-    "web": {"path": "web.jpg", "sha256": "<hex>"}
+    "master": {"path": "source_IMG-2026-03-07-0001_master.png", "sha256": "<hex>"},
+    "web": {"path": "source_IMG-2026-03-07-0001_web.jpg", "sha256": "<hex>"}
   },
   "timestamps": {
     "local_created": "2025-10-15T03:12:05-04:00",
