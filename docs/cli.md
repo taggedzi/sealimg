@@ -1,4 +1,4 @@
-# CLI Reference (Draft)
+# CLI Reference
 
 > Flags and output may evolve during v0.x releases.
 
