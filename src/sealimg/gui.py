@@ -13,6 +13,8 @@ from typing import Sequence
 
 from .config import SealimgConfig, load_config, save_config
 
+VISIBLE_WATERMARK_STYLES = ("diag-low", "flat")
+
 
 def has_tkinterdnd2() -> bool:
     return importlib.util.find_spec("tkinterdnd2") is not None
@@ -286,6 +288,13 @@ def derive_profile_watermark_state(profile: dict[str, object] | None) -> dict[st
     }
 
 
+def normalize_visible_style(style: str) -> str:
+    value = str(style).strip().lower()
+    if value in VISIBLE_WATERMARK_STYLES:
+        return value
+    return "flat"
+
+
 def build_gui_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="sealimg-gui",
@@ -361,7 +370,7 @@ def run_gui(
     default_config_path = config_path
     default_output_root_path = default_output_root
 
-    ttk.Label(controls, text="Config path").grid(row=0, column=0, sticky="w")
+    ttk.Label(controls, text="Config path *").grid(row=0, column=0, sticky="w")
     ttk.Entry(controls, textvariable=config_var, width=48).grid(
         row=0, column=1, sticky="ew", padx=6
     )
@@ -380,7 +389,7 @@ def run_gui(
     ttk.Button(controls, text="Browse...", command=_browse_config).grid(
         row=0, column=2, sticky="w"
     )
-    ttk.Label(controls, text="Profile").grid(row=1, column=0, sticky="w")
+    ttk.Label(controls, text="Profile *").grid(row=1, column=0, sticky="w")
     profile_combo = ttk.Combobox(controls, state="readonly", textvariable=profile_var, width=24)
     profile_combo.grid(row=1, column=1, sticky="w", padx=6)
     ttk.Label(controls, text="Output root").grid(row=2, column=0, sticky="w")
@@ -404,7 +413,7 @@ def run_gui(
     ttk.Entry(controls, textvariable=recipient_var, width=56).grid(
         row=3, column=1, sticky="ew", padx=6
     )
-    ttk.Label(controls, text="Passphrase").grid(row=4, column=0, sticky="w")
+    ttk.Label(controls, text="Passphrase *").grid(row=4, column=0, sticky="w")
     ttk.Entry(controls, textvariable=passphrase_var, width=56, show="*").grid(
         row=4, column=1, sticky="ew", padx=6
     )
@@ -412,29 +421,40 @@ def run_gui(
 
     profile_info = ttk.LabelFrame(frame, text="Profile watermark settings (read-only)")
     profile_info.pack(fill="x", pady=(8, 6))
-    ttk.Label(profile_info, text="Visible").grid(row=0, column=0, sticky="w", padx=(8, 2), pady=6)
-    ttk.Label(profile_info, textvariable=wm_visible_summary_var).grid(
-        row=0, column=1, sticky="w", padx=(0, 12), pady=6
+    summary_grid = ttk.Frame(profile_info)
+    summary_grid.pack(fill="x", padx=8, pady=8)
+    summary_grid.columnconfigure(0, weight=1)
+    summary_grid.columnconfigure(1, weight=1)
+
+    visible_frame = ttk.LabelFrame(summary_grid, text="Visible watermark")
+    visible_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+    ttk.Label(visible_frame, text="Enabled").grid(row=0, column=0, sticky="w", padx=8, pady=(8, 2))
+    ttk.Label(visible_frame, textvariable=wm_visible_summary_var).grid(
+        row=0, column=1, sticky="w", padx=(0, 8), pady=(8, 2)
     )
-    ttk.Label(profile_info, text="Invisible").grid(row=0, column=2, sticky="w", padx=(0, 2), pady=6)
-    ttk.Label(profile_info, textvariable=wm_invisible_summary_var).grid(
-        row=0, column=3, sticky="w", padx=(0, 12), pady=6
+    ttk.Label(visible_frame, text="Style").grid(row=1, column=0, sticky="w", padx=8, pady=2)
+    ttk.Label(visible_frame, textvariable=wm_visible_style_summary_var).grid(
+        row=1, column=1, sticky="w", padx=(0, 8), pady=2
     )
-    ttk.Label(profile_info, text="Mode").grid(row=0, column=4, sticky="w", padx=(0, 2), pady=6)
-    ttk.Label(profile_info, textvariable=wm_invisible_mode_summary_var).grid(
-        row=0, column=5, sticky="w", padx=(0, 12), pady=6
+    ttk.Label(visible_frame, text="Text").grid(row=2, column=0, sticky="nw", padx=8, pady=(2, 8))
+    ttk.Label(
+        visible_frame,
+        textvariable=wm_visible_text_summary_var,
+        justify="left",
+        wraplength=320,
+    ).grid(row=2, column=1, sticky="w", padx=(0, 8), pady=(2, 8))
+
+    invisible_frame = ttk.LabelFrame(summary_grid, text="Invisible watermark")
+    invisible_frame.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
+    ttk.Label(invisible_frame, text="Enabled").grid(
+        row=0, column=0, sticky="w", padx=8, pady=(8, 2)
     )
-    ttk.Label(profile_info, text="Visible style").grid(
-        row=1, column=0, sticky="w", padx=(8, 2), pady=(0, 6)
+    ttk.Label(invisible_frame, textvariable=wm_invisible_summary_var).grid(
+        row=0, column=1, sticky="w", padx=(0, 8), pady=(8, 2)
     )
-    ttk.Label(profile_info, textvariable=wm_visible_style_summary_var).grid(
-        row=1, column=1, sticky="w", columnspan=2, pady=(0, 6)
-    )
-    ttk.Label(profile_info, text="Visible text").grid(
-        row=1, column=3, sticky="w", padx=(0, 2), pady=(0, 6)
-    )
-    ttk.Label(profile_info, textvariable=wm_visible_text_summary_var).grid(
-        row=1, column=4, sticky="w", columnspan=2, pady=(0, 6)
+    ttk.Label(invisible_frame, text="Mode").grid(row=1, column=0, sticky="w", padx=8, pady=(2, 8))
+    ttk.Label(invisible_frame, textvariable=wm_invisible_mode_summary_var).grid(
+        row=1, column=1, sticky="w", padx=(0, 8), pady=(2, 8)
     )
 
     flags = ttk.Frame(frame)
@@ -532,7 +552,136 @@ def run_gui(
         wm_invisible_summary_var.set("On" if wm_invisible_var.get() else "Off")
         wm_invisible_mode_summary_var.set(wm_invisible_mode_var.get())
         wm_visible_style_summary_var.set(str(state["visible_style"]))
-        wm_visible_text_summary_var.set(str(state["visible_text"]) or "(empty)")
+        wm_visible_text_summary_var.set(str(state["visible_text"]) or "(not set)")
+
+    def _open_settings_modal() -> None:
+        cfg_path = config_var.get().strip()
+        try:
+            cfg = load_config(Path(cfg_path).expanduser())
+        except Exception as exc:
+            messagebox.showerror("Sealimg", f"Unable to load config for settings: {exc}")
+            return
+
+        win = tk.Toplevel(root)
+        win.title("Settings")
+        win.geometry("760x300")
+        win.transient(root)
+        win.grab_set()
+
+        body = ttk.Frame(win, padding=10)
+        body.pack(fill="both", expand=True)
+
+        author_var = tk.StringVar(value=cfg.author)
+        website_var = tk.StringVar(value=cfg.website)
+        license_var = tk.StringVar(value=cfg.license)
+        default_profile_var = tk.StringVar(value=cfg.default_profile)
+        output_root_cfg_var = tk.StringVar(value=cfg.output_root)
+        signing_key_var = tk.StringVar(value=cfg.signing_key)
+        profile_names = sorted(cfg.profiles.keys())
+
+        ttk.Label(body, text="Author *").grid(row=0, column=0, sticky="w")
+        ttk.Entry(body, textvariable=author_var, width=58).grid(
+            row=0, column=1, columnspan=2, sticky="ew", padx=6
+        )
+        ttk.Label(body, text="Website *").grid(row=1, column=0, sticky="w")
+        ttk.Entry(body, textvariable=website_var, width=58).grid(
+            row=1, column=1, columnspan=2, sticky="ew", padx=6
+        )
+        ttk.Label(body, text="License *").grid(row=2, column=0, sticky="w")
+        ttk.Entry(body, textvariable=license_var, width=58).grid(
+            row=2, column=1, columnspan=2, sticky="ew", padx=6
+        )
+        ttk.Label(body, text="Default profile *").grid(row=3, column=0, sticky="w")
+        ttk.Combobox(
+            body,
+            state="readonly",
+            values=profile_names,
+            textvariable=default_profile_var,
+            width=24,
+        ).grid(row=3, column=1, sticky="w", padx=6)
+        ttk.Label(body, text="Output root *").grid(row=4, column=0, sticky="w")
+        ttk.Entry(body, textvariable=output_root_cfg_var, width=58).grid(
+            row=4, column=1, columnspan=2, sticky="ew", padx=6
+        )
+        ttk.Label(body, text="Signing key *").grid(row=5, column=0, sticky="w")
+        ttk.Entry(body, textvariable=signing_key_var, width=58).grid(
+            row=5, column=1, sticky="ew", padx=6
+        )
+
+        def _browse_signing_key() -> None:
+            current = signing_key_var.get().strip()
+            selected = filedialog.askopenfilename(
+                title="Select private signing key",
+                initialdir=str(Path(current).expanduser().parent)
+                if current
+                else str(Path.home()),
+                filetypes=[("Key files", "*.key"), ("All files", "*.*")],
+            )
+            if selected:
+                signing_key_var.set(str(selected))
+
+        ttk.Button(body, text="Browse...", command=_browse_signing_key).grid(
+            row=5, column=2, sticky="w"
+        )
+        body.columnconfigure(1, weight=1)
+
+        btns_local = ttk.Frame(body)
+        btns_local.grid(row=6, column=0, columnspan=3, sticky="w", pady=(12, 0))
+
+        def _save_settings() -> None:
+            author = author_var.get().strip()
+            website = website_var.get().strip()
+            license_value = license_var.get().strip()
+            default_profile = default_profile_var.get().strip()
+            output_root_cfg = output_root_cfg_var.get().strip()
+            signing_key = signing_key_var.get().strip()
+
+            if not author:
+                messagebox.showerror("Sealimg", "Author is required.", parent=win)
+                return
+            if not website:
+                messagebox.showerror("Sealimg", "Website is required.", parent=win)
+                return
+            if not license_value:
+                messagebox.showerror("Sealimg", "License is required.", parent=win)
+                return
+            if not default_profile:
+                messagebox.showerror("Sealimg", "Default profile is required.", parent=win)
+                return
+            if default_profile not in cfg.profiles:
+                messagebox.showerror(
+                    "Sealimg",
+                    f"Default profile '{default_profile}' is not defined in profiles.",
+                    parent=win,
+                )
+                return
+            if not output_root_cfg:
+                messagebox.showerror("Sealimg", "Output root is required.", parent=win)
+                return
+            if not signing_key:
+                messagebox.showerror("Sealimg", "Signing key is required.", parent=win)
+                return
+
+            data = cfg.to_dict()
+            data["author"] = author
+            data["website"] = website
+            data["license"] = license_value
+            data["default_profile"] = default_profile
+            data["output_root"] = output_root_cfg
+            data["signing_key"] = signing_key
+            try:
+                save_config(Path(cfg_path).expanduser(), SealimgConfig.from_dict(data))
+            except Exception as exc:
+                messagebox.showerror("Sealimg", f"Unable to save settings: {exc}", parent=win)
+                return
+
+            output_root_var.set(output_root_cfg)
+            _refresh_profiles(preferred=default_profile)
+            _append("Saved config settings.")
+            win.destroy()
+
+        ttk.Button(btns_local, text="Save", command=_save_settings).pack(side="left")
+        ttk.Button(btns_local, text="Close", command=win.destroy).pack(side="left", padx=6)
 
     def _open_profile_manager() -> None:
         cfg_path = config_var.get().strip()
@@ -613,7 +762,7 @@ def run_gui(
             wm_visible_var_local.set(bool(wm_visible.get("enabled", True)))
             wm_invisible_var_local.set(bool(wm_invisible.get("enabled", False)))
             wm_invisible_mode_var_local.set(str(wm_invisible.get("mode", "auto")))
-            wm_style_var.set(str(wm_visible.get("style", "diag-low")))
+            wm_style_var.set(normalize_visible_style(str(wm_visible.get("style", "diag-low"))))
             wm_text_var.set(str(wm_visible.get("text", "")))
             make_default_var.set(current_cfg.default_profile == n)
 
@@ -634,33 +783,48 @@ def run_gui(
             row=2, column=1, sticky="w", padx=6
         )
 
-        ttk.Checkbutton(right, text="Visible watermark", variable=wm_visible_var_local).grid(
-            row=3, column=0, sticky="w"
+        wm_groups = ttk.Frame(right)
+        wm_groups.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(10, 0))
+        wm_groups.columnconfigure(0, weight=1)
+        wm_groups.columnconfigure(1, weight=1)
+
+        visible_group = ttk.LabelFrame(wm_groups, text="Visible watermark")
+        visible_group.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+        ttk.Checkbutton(visible_group, text="Enabled", variable=wm_visible_var_local).grid(
+            row=0, column=0, columnspan=2, sticky="w", padx=8, pady=(8, 4)
         )
-        ttk.Checkbutton(right, text="Invisible watermark", variable=wm_invisible_var_local).grid(
-            row=3, column=1, sticky="w"
-        )
-        ttk.Label(right, text="Invisible mode").grid(row=4, column=0, sticky="w")
+        ttk.Label(visible_group, text="Style").grid(row=1, column=0, sticky="w", padx=8, pady=2)
         ttk.Combobox(
-            right,
+            visible_group,
+            state="readonly",
+            values=VISIBLE_WATERMARK_STYLES,
+            textvariable=wm_style_var,
+            width=14,
+        ).grid(row=1, column=1, sticky="w", padx=(0, 8), pady=2)
+        ttk.Label(visible_group, text="Text").grid(row=2, column=0, sticky="w", padx=8, pady=(2, 8))
+        ttk.Entry(visible_group, textvariable=wm_text_var, width=30).grid(
+            row=2, column=1, sticky="ew", padx=(0, 8), pady=(2, 8)
+        )
+        visible_group.columnconfigure(1, weight=1)
+
+        invisible_group = ttk.LabelFrame(wm_groups, text="Invisible watermark")
+        invisible_group.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
+        ttk.Checkbutton(invisible_group, text="Enabled", variable=wm_invisible_var_local).grid(
+            row=0, column=0, columnspan=2, sticky="w", padx=8, pady=(8, 4)
+        )
+        ttk.Label(invisible_group, text="Mode").grid(row=1, column=0, sticky="w", padx=8, pady=(2, 8))
+        ttk.Combobox(
+            invisible_group,
             state="readonly",
             values=("auto", "image-id", "recipient", "owner"),
             textvariable=wm_invisible_mode_var_local,
             width=14,
-        ).grid(row=4, column=1, sticky="w", padx=6)
+        ).grid(row=1, column=1, sticky="w", padx=(0, 8), pady=(2, 8))
 
-        ttk.Label(right, text="Visible style").grid(row=5, column=0, sticky="w")
-        ttk.Entry(right, textvariable=wm_style_var, width=20).grid(
-            row=5, column=1, sticky="w", padx=6
-        )
-        ttk.Label(right, text="Visible text").grid(row=6, column=0, sticky="w")
-        ttk.Entry(right, textvariable=wm_text_var, width=48).grid(
-            row=6, column=1, columnspan=2, sticky="ew", padx=6
-        )
         right.columnconfigure(2, weight=1)
 
         btn_row = ttk.Frame(right)
-        btn_row.grid(row=7, column=0, columnspan=3, sticky="w", pady=(12, 0))
+        btn_row.grid(row=4, column=0, columnspan=3, sticky="w", pady=(12, 0))
 
         def _add_new() -> None:
             suggested = simpledialog.askstring("New profile", "Profile name:", parent=win)
@@ -690,7 +854,7 @@ def run_gui(
                     wm_visible_enabled=wm_visible_var_local.get(),
                     wm_invisible_enabled=wm_invisible_var_local.get(),
                     wm_invisible_mode=wm_invisible_mode_var_local.get().strip(),
-                    wm_style=wm_style_var.get().strip() or "diag-low",
+                    wm_style=normalize_visible_style(wm_style_var.get()),
                     wm_text=wm_text_var.get(),
                     make_default=make_default_var.get(),
                 )
@@ -721,6 +885,9 @@ def run_gui(
 
         _sync_list()
 
+    ttk.Button(controls, text="Settings...", command=_open_settings_modal).grid(
+        row=0, column=3, sticky="w", padx=(6, 0)
+    )
     ttk.Button(controls, text="Manage...", command=_open_profile_manager).grid(
         row=1, column=2, sticky="w"
     )
@@ -814,13 +981,29 @@ def run_gui(
         _append("Key generation complete.")
         return True
 
+    def _validate_required_fields() -> bool:
+        if not config_var.get().strip():
+            messagebox.showerror("Sealimg", "Config path is required.")
+            return False
+        if not profile_var.get().strip():
+            messagebox.showerror("Sealimg", "Profile is required.")
+            return False
+        if not passphrase_var.get().strip():
+            messagebox.showerror("Sealimg", "Passphrase is required.")
+            return False
+        return True
+
     def _run_setup() -> None:
         if running["active"]:
+            return
+        if not _validate_required_fields():
             return
         _ensure_setup()
 
     def _run_seal() -> None:
         if running["active"]:
+            return
+        if not _validate_required_fields():
             return
         if not paths:
             messagebox.showerror("Sealimg", "Add at least one file or folder.")
@@ -880,8 +1063,7 @@ def run_gui(
         thread = threading.Thread(target=_worker, daemon=True)
         thread.start()
 
-    setup_btn = ttk.Button(btns, text="Setup keys", command=_run_setup)
-    setup_btn.pack(side="right", padx=(0, 6))
+    ttk.Button(controls, text="Setup keys...", command=_run_setup).grid(row=4, column=2, sticky="w")
     run_btn = ttk.Button(btns, text="Seal now", command=_run_seal)
     run_btn.pack(side="right")
 
