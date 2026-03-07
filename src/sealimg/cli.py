@@ -117,6 +117,7 @@ def build_parser() -> argparse.ArgumentParser:
     seal.add_argument("--no-embed", action="store_true")
     seal.add_argument("--id-prefix", default="IMG")
     seal.add_argument("--author", default=None)
+    seal.add_argument("--recipient-id", default=None)
     seal.add_argument("--site", default=None)
     seal.add_argument("--license", dest="license_value", default=None)
     seal.add_argument("--output-root", default=None)
@@ -141,6 +142,7 @@ def build_parser() -> argparse.ArgumentParser:
     watch.add_argument("--no-embed", action="store_true")
     watch.add_argument("--id-prefix", default="IMG")
     watch.add_argument("--author", default=None)
+    watch.add_argument("--recipient-id", default=None)
     watch.add_argument("--site", default=None)
     watch.add_argument("--license", dest="license_value", default=None)
     watch.add_argument("--output-root", default=None)
@@ -262,6 +264,7 @@ def _seal_inputs(
                 passphrase=passphrase,
                 signer_name=metadata.author,
                 public_key_path=public_key,
+                recipient_id=args.recipient_id,
                 public_proof=public_proof,
             )
 
@@ -285,6 +288,7 @@ def _seal_inputs(
                     "sha256": str(result.sha_path),
                     "readme": str(result.readme_path),
                     "bundle": str(result.zip_path) if result.zip_path else None,
+                    "recipient_fingerprint": result.recipient_fingerprint,
                     "phash": {
                         "master": result.master_phash,
                         "web": result.web_phash,
@@ -311,6 +315,8 @@ def _seal_inputs(
             )
             if not args.json:
                 print(f"Sealed {image} -> {result.output_dir}")
+                if result.recipient_fingerprint:
+                    print(f"Recipient fingerprint: {result.recipient_fingerprint}")
                 print("Embed status:")
                 print(f"pHash master: {result.master_phash}")
                 print(f"pHash web: {result.web_phash}")

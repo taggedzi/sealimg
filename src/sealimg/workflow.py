@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -43,6 +44,7 @@ class SealResult:
     sha_path: Path
     readme_path: Path
     zip_path: Path | None
+    recipient_fingerprint: str | None
     master_phash: str
     web_phash: str
     master_embed_status: EmbedStatus
@@ -108,6 +110,7 @@ def seal_image(
     passphrase: str,
     signer_name: str,
     public_key_path: Path,
+    recipient_id: str | None = None,
     public_proof: str | None = None,
     image_id_override: str | None = None,
 ) -> SealResult:
@@ -127,7 +130,13 @@ def seal_image(
 
     merged = merge_profile(profile_defaults, selected_profile, cli_overrides)
     invisible_enabled = bool(merged.get("wm_invisible", {}).get("enabled", False))
-    invisible_payload = _resolve_invisible_payload(merged, image_id, invisible_enabled)
+    recipient_fingerprint = _derive_recipient_fingerprint(recipient_id, image_id)
+    invisible_payload = _resolve_invisible_payload(
+        merged,
+        image_id,
+        invisible_enabled,
+        recipient_fingerprint=recipient_fingerprint,
+    )
     create_master_copy(input_path=input_path, output_path=master_path, metadata_fields=metadata)
     create_web_copy(
         input_path=input_path,
@@ -187,6 +196,8 @@ def seal_image(
     }
     if public_proof:
         manifest_payload["timestamps"]["public_proof"] = public_proof
+    if recipient_fingerprint:
+        manifest_payload["watermarks"]["invisible"]["recipient_fingerprint"] = recipient_fingerprint
     manifest_payload = update_manifest_file_hashes(
         manifest_payload, master_path=master_path, web_path=web_path
     )
@@ -222,6 +233,7 @@ def seal_image(
         sha_path=sha_path,
         readme_path=readme_path,
         zip_path=zip_path,
+        recipient_fingerprint=recipient_fingerprint,
         master_phash=master_phash,
         web_phash=web_phash,
         master_embed_status=master_embed_status,
@@ -339,6 +351,8 @@ def _resolve_invisible_payload(
     merged_profile: dict[str, Any],
     image_id: str,
     enabled: bool,
+    *,
+    recipient_fingerprint: str | None = None,
 ) -> str | None:
     wm_invisible = merged_profile.get("wm_invisible", {})
     raw_payload = wm_invisible.get("payload")
@@ -347,5 +361,14 @@ def _resolve_invisible_payload(
             return None
         return str(raw_payload)
     if raw_payload in (None, ""):
+        if recipient_fingerprint is not None:
+            return recipient_fingerprint
         return image_id
     return str(raw_payload)
+
+
+def _derive_recipient_fingerprint(recipient_id: str | None, image_id: str) -> str | None:
+    if not recipient_id:
+        return None
+    token = f"{recipient_id.strip()}::{image_id}".encode("utf-8")
+    return hashlib.sha256(token).hexdigest()[:16]
