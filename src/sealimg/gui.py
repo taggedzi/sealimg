@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import importlib.util
 import io
 import json
 import threading
@@ -11,6 +12,10 @@ from pathlib import Path
 from typing import Sequence
 
 from .config import load_config
+
+
+def has_tkinterdnd2() -> bool:
+    return importlib.util.find_spec("tkinterdnd2") is not None
 
 
 def detect_bootstrap_needs(config_path: str) -> tuple[bool, bool]:
@@ -184,7 +189,17 @@ def run_gui(
     except Exception as exc:  # pragma: no cover - depends on runtime environment
         raise RuntimeError("Tkinter is required for sealimg gui") from exc
 
-    root = tk.Tk()
+    dnd_files_token: str | None = None
+    if has_tkinterdnd2():
+        try:
+            from tkinterdnd2 import DND_FILES, TkinterDnD
+
+            root = TkinterDnD.Tk()
+            dnd_files_token = DND_FILES
+        except Exception:
+            root = tk.Tk()
+    else:
+        root = tk.Tk()
     root.title("Sealimg")
     root.geometry("860x600")
 
@@ -324,10 +339,11 @@ def run_gui(
         )
 
     def _enable_drag_drop() -> bool:
+        if not dnd_files_token:
+            return False
         try:
-            root.tk.call("package", "require", "tkdnd")
-            root.tk.call("tkdnd::drop_target", "register", str(listbox), "DND_Files")
-            listbox.bind("<<Drop:DND_Files>>", _on_drop)
+            listbox.drop_target_register(dnd_files_token)
+            listbox.dnd_bind("<<Drop>>", _on_drop)
         except Exception:
             return False
         return True
@@ -451,7 +467,7 @@ def run_gui(
         dnd_status_var.set("Drag and drop is enabled on this system.")
     else:
         dnd_status_var.set(
-            "Drag and drop is unavailable in this Tk install. Use Add files/Add folder."
+            "Drag and drop is unavailable. Install tkinterdnd2 or use Add files/Add folder."
         )
 
     root.mainloop()

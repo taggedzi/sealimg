@@ -4,6 +4,14 @@ from sealimg import gui
 from sealimg.config import SealimgConfig, save_config
 
 
+def test_has_tkinterdnd2_reflects_find_spec(monkeypatch) -> None:
+    monkeypatch.setattr(gui.importlib.util, "find_spec", lambda _name: object())
+    assert gui.has_tkinterdnd2() is True
+
+    monkeypatch.setattr(gui.importlib.util, "find_spec", lambda _name: None)
+    assert gui.has_tkinterdnd2() is False
+
+
 def test_build_seal_cli_args_includes_expected_flags() -> None:
     args = gui.build_seal_cli_args(
         paths=["img1.jpg", "folder"],
