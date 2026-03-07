@@ -138,10 +138,12 @@ def test_json_outputs_for_seal_verify_inspect(tmp_path: Path, capsys) -> None:
 def test_metadata_stripped_copy_does_not_break_sidecar_verification(tmp_path: Path) -> None:
     sealed_dir, _, public_key = _setup_sealed_artifact(tmp_path)
     web = sealed_dir / "web.jpg"
-    stripped_copy = sealed_dir / "web-stripped.png"
+    stripped_png = sealed_dir / "web-stripped.png"
+    stripped_jpg = sealed_dir / "web-stripped.jpg"
 
     with Image.open(web) as image:
-        image.save(stripped_copy, format="PNG", pnginfo=PngInfo())
+        image.save(stripped_png, format="PNG", pnginfo=PngInfo())
+        image.save(stripped_jpg, format="JPEG", quality=85)
 
     # Sidecar verification still succeeds for the original sealed package.
     rc = main(["verify", str(sealed_dir / "manifest.json"), "--pubkey", str(public_key)])

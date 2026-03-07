@@ -87,29 +87,29 @@ This TODO is derived from `README.md`, `docs/`, `design/`, and `specs/` and is i
 - [x] Ensure private key/passphrase never printed or logged.
 - [x] Add friendly, actionable errors for unsupported formats and missing keys.
 - [x] Add deterministic output for CI use (machine-readable mode).
-- [ ] Add watch/batch behavior backlog item for v0.3.
-- [ ] Add timestamp helper backlog item for v0.5 (`hashes.txt` + optional POST hook).
+- [x] Add watch/batch behavior backlog item for v0.3.
+- [x] Add timestamp helper backlog item for v0.5 (`hashes.txt` + optional POST hook).
 
 ## 8) Test Plan Implementation
 - [x] Functional tests:
   - [x] seal PNG
   - [x] seal JPEG
   - [x] verify outputs exist and parse
-- [ ] Crypto tests:
+- [x] Crypto tests:
   - [x] signature validates with independent verifier
   - [x] tampered manifest fails verification
-- [ ] Metadata tests:
+- [x] Metadata tests:
   - [x] IPTC/XMP mappings match `specs/iptc-xmp-mapping.md`
-- [ ] Embed tests:
+- [x] Embed tests:
   - [x] embed success path (where library support exists)
   - [x] sidecar fallback path
-- [ ] Mutation tests:
+- [x] Mutation tests:
   - [x] metadata stripped case still verifies via sidecar
   - [x] modified file causes hash mismatch
-- [ ] Cross-platform tests:
+- [x] Cross-platform tests:
   - [x] Windows/macOS/Linux paths
   - [x] non-ASCII filenames
-- [ ] Regression fixtures:
+- [x] Regression fixtures:
   - [x] golden manifest snapshots
   - [x] golden hashes/signatures
 

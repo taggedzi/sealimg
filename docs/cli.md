@@ -9,7 +9,7 @@ Create a signing keypair.
 ```
 sealimg keygen [--ed25519|--rsa] [--name "Display Name"] \
   [--key-name NAME] [--output-dir PATH] \
-  [--passphrase "..."] [--write-config] [--config-path PATH]
+  [--passphrase "..."] [--write-config] [--config-path PATH] [--verbose]
 ```
 
 ### `sealimg key show`
@@ -45,6 +45,19 @@ sealimg seal <paths...> [--recursive] [--profile NAME]
 [--author "..."] [--site "..."] [--license "..."]
 [--output-root PATH] [--signing-key PATH]
 [--passphrase "..."] [--config-path PATH] [--json]
+[--timestamp-log PATH] [--timestamp-post-url URL]
+```
+
+### `sealimg watch`
+Watch a directory and seal newly discovered images.
+```
+sealimg watch <directory> [--recursive] [--profile NAME]
+[--wm-visible on|off] [--wm-invisible on|off]
+[--bundle on|off] [--no-embed] [--id-prefix "IMG-"]
+[--author "..."] [--site "..."] [--license "..."]
+[--output-root PATH] [--signing-key PATH] [--passphrase "..."]
+[--interval 2.0] [--once] [--json]
+[--timestamp-log PATH] [--timestamp-post-url URL]
 ```
 
 ### `sealimg verify`

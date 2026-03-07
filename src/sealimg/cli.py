@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import time
 from pathlib import Path
 from typing import Sequence
 
@@ -13,6 +14,7 @@ from .config import SealimgConfig, dump_yaml_object, load_config, save_config
 from .crypto import CryptoError, generate_keypair, public_key_fingerprint
 from .image_pipeline import ImagePipelineError
 from .metadata import MetadataFields
+from .timestamping import append_hash_line, build_hash_line, post_hash_line
 from .workflow import (
     derive_paths_from_config,
     discover_input_images,
@@ -94,6 +96,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Private key passphrase (defaults to SEALIMG_PASSPHRASE env var)",
     )
+    keygen.add_argument("--verbose", action="store_true", help="Print private key path")
     keygen.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH), help="Config file path")
     keygen.add_argument("--write-config", action="store_true", help="Write signing key to config")
 
@@ -121,6 +124,38 @@ def build_parser() -> argparse.ArgumentParser:
     seal.add_argument("--passphrase", default=None)
     seal.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH))
     seal.add_argument("--json", action="store_true", help="Emit machine-readable JSON output")
+    seal.add_argument(
+        "--timestamp-log",
+        default=None,
+        help="Append manifest hash lines to this file",
+    )
+    seal.add_argument("--timestamp-post-url", default=None, help="POST manifest hash lines to URL")
+
+    watch = subparsers.add_parser("watch", help="Watch a directory and auto-seal new images")
+    watch.add_argument("path")
+    watch.add_argument("--recursive", action="store_true")
+    watch.add_argument("--profile", default=None)
+    watch.add_argument("--wm-visible", choices=["on", "off"], default=None)
+    watch.add_argument("--wm-invisible", choices=["on", "off"], default=None)
+    watch.add_argument("--bundle", choices=["on", "off"], default="off")
+    watch.add_argument("--no-embed", action="store_true")
+    watch.add_argument("--id-prefix", default="IMG")
+    watch.add_argument("--author", default=None)
+    watch.add_argument("--site", default=None)
+    watch.add_argument("--license", dest="license_value", default=None)
+    watch.add_argument("--output-root", default=None)
+    watch.add_argument("--signing-key", default=None)
+    watch.add_argument("--passphrase", default=None)
+    watch.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH))
+    watch.add_argument("--interval", type=float, default=2.0)
+    watch.add_argument("--once", action="store_true", help="Run a single scan and exit")
+    watch.add_argument("--json", action="store_true", help="Emit machine-readable JSON output")
+    watch.add_argument(
+        "--timestamp-log",
+        default=None,
+        help="Append manifest hash lines to this file",
+    )
+    watch.add_argument("--timestamp-post-url", default=None, help="POST manifest hash lines to URL")
 
     verify = subparsers.add_parser("verify", help="Verify a manifest/image")
     verify.add_argument("target")
@@ -173,6 +208,103 @@ def _load_or_init_config(config_path: Path) -> SealimgConfig:
     return config
 
 
+def _seal_inputs(
+    *,
+    inputs: list[Path],
+    cfg: SealimgConfig,
+    args: argparse.Namespace,
+    passphrase: str,
+    signing_key: Path,
+    public_key: Path,
+) -> tuple[int, list[dict[str, object]]]:
+    output_root = Path(args.output_root or cfg.output_root).expanduser()
+    profile_name = args.profile or cfg.default_profile
+    selected_profile = cfg.profiles.get(profile_name)
+    if selected_profile is None:
+        _print_safe_error(f"profile '{profile_name}' not found")
+        return 1, []
+    overrides: dict[str, object] = {}
+    if args.wm_visible:
+        overrides.setdefault("wm_visible", {})["enabled"] = args.wm_visible == "on"
+    if args.wm_invisible:
+        overrides.setdefault("wm_invisible", {})["enabled"] = args.wm_invisible == "on"
+
+    metadata = MetadataFields(
+        author=args.author or cfg.author,
+        website=args.site or cfg.website,
+        license=args.license_value or cfg.license,
+        copyright_notice=f"(c) {args.author or cfg.author}",
+    )
+
+    from .ids import ImageIdGenerator
+
+    id_gen = ImageIdGenerator(prefix=args.id_prefix)
+    exit_code = 0
+    json_results: list[dict[str, object]] = []
+
+    for image in inputs:
+        try:
+            result = seal_image(
+                input_path=image,
+                output_root=output_root,
+                id_generator=id_gen,
+                metadata=metadata,
+                profile_defaults=cfg.profiles.get("web", {}),
+                selected_profile=selected_profile,
+                cli_overrides=overrides,
+                bundle=args.bundle == "on",
+                embed_enabled=not args.no_embed,
+                signing_key_path=signing_key,
+                passphrase=passphrase,
+                signer_name=metadata.author,
+                public_key_path=public_key,
+            )
+
+            timestamp_line: str | None = None
+            if args.timestamp_log or args.timestamp_post_url:
+                timestamp_line = build_hash_line(result.manifest_path, result.image_id)
+                if args.timestamp_log:
+                    append_hash_line(Path(args.timestamp_log).expanduser(), timestamp_line)
+                if args.timestamp_post_url:
+                    post_hash_line(args.timestamp_post_url, timestamp_line)
+
+            json_results.append(
+                {
+                    "input": str(image),
+                    "image_id": result.image_id,
+                    "output_dir": str(result.output_dir),
+                    "master": str(result.master_path),
+                    "web": str(result.web_path),
+                    "manifest": str(result.manifest_path),
+                    "signature": str(result.signature_path),
+                    "sha256": str(result.sha_path),
+                    "readme": str(result.readme_path),
+                    "bundle": str(result.zip_path) if result.zip_path else None,
+                    "embed_status": result.embed_status.status,
+                    "embed_message": result.embed_status.message,
+                    "timestamp_line": timestamp_line,
+                }
+            )
+            if not args.json:
+                print(f"Sealed {image} -> {result.output_dir}")
+                print(
+                    f"Embed status: {result.embed_status.status} "
+                    f"({result.embed_status.message})"
+                )
+                if timestamp_line:
+                    print(f"Timestamp line: {timestamp_line}")
+        except ImagePipelineError as exc:
+            if not args.json:
+                _print_safe_error(f"unsupported or invalid image '{image}'", exc)
+            exit_code = 3
+        except Exception as exc:
+            if not args.json:
+                _print_safe_error(f"sealing failed for '{image}'", exc, secrets=[passphrase])
+            exit_code = 1
+
+    return exit_code, json_results
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -199,7 +331,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             _print_safe_error("key generation failed", exc, secrets=[passphrase])
             return 1
         print(f"Generated {info.algorithm} keys for '{info.signer}'.")
-        print(f"Private key: {info.paths.private_key}")
+        if args.verbose:
+            print(f"Private key: {info.paths.private_key}")
         print(f"Public key: {info.paths.public_key}")
         print(f"Fingerprint: {info.fingerprint}")
         if args.write_config:
@@ -324,81 +457,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             _print_safe_error("unable to resolve signing keys", exc)
             return 1
 
-        output_root = Path(args.output_root or cfg.output_root).expanduser()
-        profile_name = args.profile or cfg.default_profile
-        selected_profile = cfg.profiles.get(profile_name)
-        if selected_profile is None:
-            print(f"Error: profile '{profile_name}' not found.")
-            return 1
-        overrides = {}
-        if args.wm_visible:
-            overrides.setdefault("wm_visible", {})["enabled"] = args.wm_visible == "on"
-        if args.wm_invisible:
-            overrides.setdefault("wm_invisible", {})["enabled"] = args.wm_invisible == "on"
-
-        metadata = MetadataFields(
-            author=args.author or cfg.author,
-            website=args.site or cfg.website,
-            license=args.license_value or cfg.license,
-            copyright_notice=f"(c) {args.author or cfg.author}",
-        )
         inputs = discover_input_images([Path(p) for p in args.paths], recursive=args.recursive)
         if not inputs:
             print("Error: no supported input images found.")
             return 1
 
-        from .ids import ImageIdGenerator
-
-        id_gen = ImageIdGenerator(prefix=args.id_prefix)
-        exit_code = 0
-        json_results = []
-        for image in inputs:
-            try:
-                result = seal_image(
-                    input_path=image,
-                    output_root=output_root,
-                    id_generator=id_gen,
-                    metadata=metadata,
-                    profile_defaults=cfg.profiles.get("web", {}),
-                    selected_profile=selected_profile,
-                    cli_overrides=overrides,
-                    bundle=args.bundle == "on",
-                    embed_enabled=not args.no_embed,
-                    signing_key_path=signing_key,
-                    passphrase=passphrase,
-                    signer_name=metadata.author,
-                    public_key_path=public_key,
-                )
-                json_results.append(
-                    {
-                        "input": str(image),
-                        "image_id": result.image_id,
-                        "output_dir": str(result.output_dir),
-                        "master": str(result.master_path),
-                        "web": str(result.web_path),
-                        "manifest": str(result.manifest_path),
-                        "signature": str(result.signature_path),
-                        "sha256": str(result.sha_path),
-                        "readme": str(result.readme_path),
-                        "bundle": str(result.zip_path) if result.zip_path else None,
-                        "embed_status": result.embed_status.status,
-                        "embed_message": result.embed_status.message,
-                    }
-                )
-                if not args.json:
-                    print(f"Sealed {image} -> {result.output_dir}")
-                    print(
-                        f"Embed status: {result.embed_status.status} "
-                        f"({result.embed_status.message})"
-                    )
-            except ImagePipelineError as exc:
-                if not args.json:
-                    _print_safe_error(f"unsupported or invalid image '{image}'", exc)
-                exit_code = 3
-            except Exception as exc:
-                if not args.json:
-                    _print_safe_error(f"sealing failed for '{image}'", exc, secrets=[passphrase])
-                exit_code = 1
+        exit_code, json_results = _seal_inputs(
+            inputs=inputs,
+            cfg=cfg,
+            args=args,
+            passphrase=passphrase,
+            signing_key=signing_key,
+            public_key=public_key,
+        )
         if args.json:
             print(
                 json.dumps(
@@ -407,6 +478,70 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "exit_code": exit_code,
                         "count": len(json_results),
                         "results": json_results,
+                    },
+                    sort_keys=True,
+                )
+            )
+        return exit_code
+
+    if args.command == "watch":
+        config_path = Path(args.config_path).expanduser()
+        try:
+            cfg = _load_or_init_config(config_path)
+        except Exception as exc:
+            _print_safe_error("unable to load config", exc)
+            return 1
+        passphrase = args.passphrase or os.environ.get("SEALIMG_PASSPHRASE")
+        if not passphrase:
+            print("Error: passphrase required (--passphrase or SEALIMG_PASSPHRASE).")
+            return 1
+        try:
+            signing_key, public_key = derive_paths_from_config(
+                cfg,
+                signing_key_override=args.signing_key,
+            )
+        except FileNotFoundError as exc:
+            _print_safe_error("unable to resolve signing keys", exc)
+            return 1
+
+        watch_root = Path(args.path)
+        if not watch_root.exists() or not watch_root.is_dir():
+            _print_safe_error(f"watch path '{watch_root}' is not a directory")
+            return 1
+
+        seen: set[Path] = set()
+        all_results: list[dict[str, object]] = []
+        exit_code = 0
+        try:
+            while True:
+                discovered = discover_input_images([watch_root], recursive=args.recursive)
+                fresh = [p for p in discovered if p not in seen]
+                seen.update(fresh)
+                if fresh:
+                    loop_exit, loop_results = _seal_inputs(
+                        inputs=fresh,
+                        cfg=cfg,
+                        args=args,
+                        passphrase=passphrase,
+                        signing_key=signing_key,
+                        public_key=public_key,
+                    )
+                    exit_code = max(exit_code, loop_exit)
+                    all_results.extend(loop_results)
+                if args.once:
+                    break
+                time.sleep(max(0.2, args.interval))
+        except KeyboardInterrupt:
+            pass
+
+        if args.json:
+            print(
+                json.dumps(
+                    {
+                        "ok": exit_code == 0,
+                        "exit_code": exit_code,
+                        "count": len(all_results),
+                        "results": all_results,
                     },
                     sort_keys=True,
                 )
