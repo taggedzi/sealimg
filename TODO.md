@@ -32,18 +32,18 @@ This TODO is derived from `README.md`, `docs/`, `design/`, and `specs/` and is i
 - [x] Add revocation list support (local text file + verify warning state).
 
 ## 3) Metadata & File Processing
-- [ ] Add PNG/JPEG input loading and normalization.
-- [ ] Implement IPTC/XMP writing for:
-  - [ ] Author
-  - [ ] Website
-  - [ ] License
-  - [ ] Copyright/title/description where provided
-- [ ] Implement master output generation (no visual pixel edits intended).
-- [ ] Implement web output generation:
-  - [ ] Resize by profile long edge
-  - [ ] JPEG quality/profile controls
-  - [ ] Optional visible watermark text/style
-- [ ] Implement optional invisible watermark plugin interface (stub for v0.1, implementation by v0.5).
+- [x] Add PNG/JPEG input loading and normalization.
+- [x] Implement IPTC/XMP writing for:
+  - [x] Author
+  - [x] Website
+  - [x] License
+  - [x] Copyright/title/description where provided
+- [x] Implement master output generation (no visual pixel edits intended).
+- [x] Implement web output generation:
+  - [x] Resize by profile long edge
+  - [x] JPEG quality/profile controls
+  - [x] Optional visible watermark text/style
+- [x] Implement optional invisible watermark plugin interface (stub for v0.1, implementation by v0.5).
 
 ## 4) Manifest, Hashes, and Packaging
 - [ ] Generate SHA-256 for `master`, `web`, and `manifest.json`.
