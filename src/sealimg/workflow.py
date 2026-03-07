@@ -42,7 +42,8 @@ class SealResult:
     sha_path: Path
     readme_path: Path
     zip_path: Path | None
-    embed_status: EmbedStatus
+    master_embed_status: EmbedStatus
+    web_embed_status: EmbedStatus
 
 
 @dataclass(frozen=True)
@@ -51,7 +52,9 @@ class VerifyResult:
     signature_valid: bool
     key_id_match: bool
     hash_valid: bool
-    embed_status: EmbedStatus
+    master_embed_status: EmbedStatus
+    web_embed_status: EmbedStatus
+    sidecar_available: bool
 
 
 @dataclass(frozen=True)
@@ -62,6 +65,8 @@ class InspectResult:
     height: int
     has_xmp: bool
     embed_status: EmbedStatus
+    artifact_embed_statuses: dict[str, EmbedStatus]
+    sidecar_available: bool
 
 
 def discover_input_images(paths: list[Path], recursive: bool) -> list[Path]:
@@ -131,7 +136,8 @@ def seal_image(
             ),
         ),
     )
-    embed_status = attempt_embed_claim(web_path, manifest_path, enabled=embed_enabled)
+    master_embed_status = attempt_embed_claim(master_path, manifest_path, enabled=embed_enabled)
+    web_embed_status = attempt_embed_claim(web_path, manifest_path, enabled=embed_enabled)
 
     signer_key_id = public_key_fingerprint(public_key_path.read_bytes())
     manifest_payload = {
@@ -205,7 +211,8 @@ def seal_image(
         sha_path=sha_path,
         readme_path=readme_path,
         zip_path=zip_path,
-        embed_status=embed_status,
+        master_embed_status=master_embed_status,
+        web_embed_status=web_embed_status,
     )
 
 
@@ -238,13 +245,17 @@ def verify_target(target: Path, public_key_path: Path) -> VerifyResult:
         and sha256_file(master) == manifest.files["master"]["sha256"]
         and sha256_file(web) == manifest.files["web"]["sha256"]
     )
-    embed_status = inspect_embed_status(web if web.exists() else target)
+    sidecar_available = manifest_path.exists() and sig_path.exists()
+    master_embed_status = _inspect_artifact_embed_status(master)
+    web_embed_status = _inspect_artifact_embed_status(web)
     return VerifyResult(
         manifest_path=manifest_path,
         signature_valid=signature_valid,
         key_id_match=key_id_match,
         hash_valid=hash_valid,
-        embed_status=embed_status,
+        master_embed_status=master_embed_status,
+        web_embed_status=web_embed_status,
+        sidecar_available=sidecar_available,
     )
 
 
@@ -252,6 +263,13 @@ def inspect_image(path: Path) -> InspectResult:
     fmt = detect_format(path)
     with Image.open(path) as image:
         width, height = image.size
+    sidecar_path = path.parent / "manifest.json"
+    artifact_embed_statuses: dict[str, EmbedStatus]
+    sidecar_available = sidecar_path.exists()
+    if sidecar_available:
+        artifact_embed_statuses = _inspect_embed_statuses_from_manifest(sidecar_path)
+    else:
+        artifact_embed_statuses = {"input": inspect_embed_status(path)}
     return InspectResult(
         path=path,
         format=fmt,
@@ -259,6 +277,8 @@ def inspect_image(path: Path) -> InspectResult:
         height=height,
         has_xmp=has_xmp(path),
         embed_status=inspect_embed_status(path),
+        artifact_embed_statuses=artifact_embed_statuses,
+        sidecar_available=sidecar_available,
     )
 
 
@@ -273,3 +293,25 @@ def derive_paths_from_config(
         if candidate.exists():
             return signing_key, candidate
     raise FileNotFoundError("Unable to resolve signing key and matching public key")
+
+
+def _inspect_artifact_embed_status(path: Path) -> EmbedStatus:
+    if not path.exists():
+        return EmbedStatus(status="missing", message=f"Artifact missing: {path.name}")
+    return inspect_embed_status(path)
+
+
+def _inspect_embed_statuses_from_manifest(manifest_path: Path) -> dict[str, EmbedStatus]:
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest = ManifestV1.from_dict(payload)
+    except Exception:
+        return {"input": _inspect_artifact_embed_status(manifest_path)}
+
+    base = manifest_path.parent
+    master = base / manifest.files["master"]["path"]
+    web = base / manifest.files["web"]["path"]
+    return {
+        "master": _inspect_artifact_embed_status(master),
+        "web": _inspect_artifact_embed_status(web),
+    }
