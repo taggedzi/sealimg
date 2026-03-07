@@ -96,9 +96,10 @@ def seal_image(
     passphrase: str,
     signer_name: str,
     public_key_path: Path,
+    image_id_override: str | None = None,
 ) -> SealResult:
     detect_format(input_path)
-    image_id = id_generator.next_id()
+    image_id = image_id_override or id_generator.next_id()
     output_dir = output_root / image_id
     output_dir.mkdir(parents=True, exist_ok=True)
 

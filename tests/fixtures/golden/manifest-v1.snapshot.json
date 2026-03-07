@@ -1,0 +1,38 @@
+{
+  "author": "Tester",
+  "files": {
+    "master": {
+      "path": "master.png",
+      "sha256": "<sha256>"
+    },
+    "web": {
+      "path": "web.jpg",
+      "sha256": "<sha256>"
+    }
+  },
+  "image_id": "IMG-TEST-0001",
+  "license": "CC BY-NC 4.0",
+  "schema": "https://sealimg.org/provenance/v1",
+  "signature": {
+    "algo": "ed25519",
+    "pubkey_fingerprint": "<fingerprint>",
+    "signature_file": "manifest.sig",
+    "signer": "Tester"
+  },
+  "timestamps": {
+    "local_created": "<timestamp>",
+    "sealed_utc": "<timestamp>"
+  },
+  "watermarks": {
+    "invisible": {
+      "applied": false,
+      "payload": null
+    },
+    "visible": {
+      "applied": true,
+      "style": "diag-low",
+      "text": "© Tester • example.test"
+    }
+  },
+  "website": "https://example.test"
+}

@@ -110,7 +110,7 @@ This TODO is derived from `README.md`, `docs/`, `design/`, and `specs/` and is i
   - [ ] Windows/macOS/Linux paths
   - [ ] non-ASCII filenames
 - [ ] Regression fixtures:
-  - [ ] golden manifest snapshots
+  - [x] golden manifest snapshots
   - [x] golden hashes/signatures
 
 ## 9) Documentation Completion Gates
