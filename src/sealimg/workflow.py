@@ -51,6 +51,8 @@ class SealResult:
     readme_path: Path
     zip_path: Path | None
     recipient_fingerprint: str | None
+    owner_fingerprint: str | None
+    invisible_mode: str
     master_phash: str
     web_phash: str
     master_embed_status: EmbedStatus
@@ -137,12 +139,21 @@ def seal_image(
 
     merged = merge_profile(profile_defaults, selected_profile, cli_overrides)
     invisible_enabled = bool(merged.get("wm_invisible", {}).get("enabled", False))
+    invisible_mode = str(merged.get("wm_invisible", {}).get("mode", "auto"))
+    signer_key_id = public_key_fingerprint(public_key_path.read_bytes())
+    owner_fingerprint = _derive_owner_fingerprint(
+        author=metadata.author,
+        website=metadata.website,
+        signer_key_id=signer_key_id,
+    )
     recipient_fingerprint = _derive_recipient_fingerprint(recipient_id, image_id)
     invisible_payload = _resolve_invisible_payload(
         merged,
         image_id,
         invisible_enabled,
+        invisible_mode=invisible_mode,
         recipient_fingerprint=recipient_fingerprint,
+        owner_fingerprint=owner_fingerprint,
     )
     create_master_copy(input_path=input_path, output_path=master_path, metadata_fields=metadata)
     create_web_copy(
@@ -164,7 +175,6 @@ def seal_image(
     master_phash = compute_phash(master_path)
     web_phash = compute_phash(web_path)
 
-    signer_key_id = public_key_fingerprint(public_key_path.read_bytes())
     manifest_payload = {
         "schema": MANIFEST_SCHEMA_V1,
         "image_id": image_id,
@@ -189,6 +199,7 @@ def seal_image(
             },
             "invisible": {
                 "applied": invisible_enabled,
+                "mode": invisible_mode,
                 "payload": invisible_payload,
             },
         },
@@ -205,6 +216,8 @@ def seal_image(
         manifest_payload["timestamps"]["public_proof"] = public_proof
     if recipient_fingerprint:
         manifest_payload["watermarks"]["invisible"]["recipient_fingerprint"] = recipient_fingerprint
+    if owner_fingerprint and invisible_mode == "owner":
+        manifest_payload["watermarks"]["invisible"]["owner_fingerprint"] = owner_fingerprint
     manifest_payload = update_manifest_file_hashes(
         manifest_payload, master_path=master_path, web_path=web_path
     )
@@ -241,6 +254,8 @@ def seal_image(
         readme_path=readme_path,
         zip_path=zip_path,
         recipient_fingerprint=recipient_fingerprint,
+        owner_fingerprint=owner_fingerprint,
+        invisible_mode=invisible_mode,
         master_phash=master_phash,
         web_phash=web_phash,
         master_embed_status=master_embed_status,
@@ -427,19 +442,37 @@ def _resolve_invisible_payload(
     image_id: str,
     enabled: bool,
     *,
+    invisible_mode: str = "auto",
     recipient_fingerprint: str | None = None,
+    owner_fingerprint: str | None = None,
 ) -> str | None:
     wm_invisible = merged_profile.get("wm_invisible", {})
     raw_payload = wm_invisible.get("payload")
+    mode = str(wm_invisible.get("mode", invisible_mode or "auto")).strip().lower()
     if not enabled:
         if raw_payload in (None, ""):
             return None
         return str(raw_payload)
-    if raw_payload in (None, ""):
-        if recipient_fingerprint is not None:
-            return recipient_fingerprint
+    if raw_payload not in (None, ""):
+        return str(raw_payload)
+    if mode == "recipient":
+        if recipient_fingerprint is None:
+            raise ValueError("wm_invisible mode 'recipient' requires --recipient-id")
+        return recipient_fingerprint
+    if mode == "owner":
+        if owner_fingerprint is None:
+            raise ValueError("wm_invisible mode 'owner' requires valid author/site/signing key")
+        return owner_fingerprint
+    if mode == "image-id":
         return image_id
-    return str(raw_payload)
+    if recipient_fingerprint is not None:
+        return recipient_fingerprint
+    return image_id
+
+
+def _derive_owner_fingerprint(*, author: str, website: str, signer_key_id: str) -> str:
+    token = f"{author.strip()}::{website.strip()}::{signer_key_id}".encode("utf-8")
+    return hashlib.sha256(token).hexdigest()[:16]
 
 
 def _derive_recipient_fingerprint(recipient_id: str | None, image_id: str) -> str | None:

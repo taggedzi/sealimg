@@ -15,6 +15,7 @@ Architecture Decision Records (ADRs) capture decisions that should remain stable
 - [0005 - Work Management Through GitHub Issues](./0005-work-management-github-issues.md) (`Accepted`)
 - [0006 - Signature Identity: Hybrid Display Name + Key-Bound ID](./0006-signature-identity-hybrid.md) (`Accepted`)
 - [0007 - Metadata/C2PA Strategy: Staged Hybrid Implementation](./0007-metadata-c2pa-staged-hybrid.md) (`Accepted`)
+- [0008 - Invisible Watermark Payload Modes](./0008-invisible-watermark-payload-modes.md) (`Accepted`)
 
 ## ADR Template
 Use this structure for new ADRs:

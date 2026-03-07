@@ -78,6 +78,7 @@ def build_seal_cli_args(
     profile: str,
     wm_visible: bool,
     wm_invisible: bool,
+    wm_invisible_mode: str,
     bundle: bool,
     no_embed: bool,
     recipient_id: str,
@@ -93,6 +94,8 @@ def build_seal_cli_args(
         args.extend(["--profile", profile.strip()])
     args.extend(["--wm-visible", "on" if wm_visible else "off"])
     args.extend(["--wm-invisible", "on" if wm_invisible else "off"])
+    if wm_invisible_mode.strip():
+        args.extend(["--wm-invisible-mode", wm_invisible_mode.strip()])
     args.extend(["--bundle", "on" if bundle else "off"])
     if no_embed:
         args.append("--no-embed")
@@ -214,6 +217,7 @@ def run_gui(
     recursive_var = tk.BooleanVar(value=True)
     wm_visible_var = tk.BooleanVar(value=True)
     wm_invisible_var = tk.BooleanVar(value=False)
+    wm_invisible_mode_var = tk.StringVar(value="auto")
     bundle_var = tk.BooleanVar(value=False)
     no_embed_var = tk.BooleanVar(value=False)
 
@@ -256,6 +260,14 @@ def run_gui(
     ttk.Checkbutton(flags, text="Invisible watermark", variable=wm_invisible_var).grid(
         row=0, column=2, sticky="w", padx=10
     )
+    ttk.Label(flags, text="Invisible mode").grid(row=1, column=0, sticky="w", pady=(6, 0))
+    ttk.Combobox(
+        flags,
+        state="readonly",
+        values=("auto", "image-id", "recipient", "owner"),
+        textvariable=wm_invisible_mode_var,
+        width=14,
+    ).grid(row=1, column=1, sticky="w", pady=(6, 0))
     ttk.Checkbutton(flags, text="Bundle ZIP", variable=bundle_var).grid(
         row=0, column=3, sticky="w", padx=10
     )
@@ -330,6 +342,7 @@ def run_gui(
             profile=profile_var.get(),
             wm_visible=wm_visible_var.get(),
             wm_invisible=wm_invisible_var.get(),
+            wm_invisible_mode=wm_invisible_mode_var.get(),
             bundle=bundle_var.get(),
             no_embed=no_embed_var.get(),
             recipient_id=recipient_var.get(),

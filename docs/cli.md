@@ -33,7 +33,8 @@ List/manage export presets.
 sealimg profile list [--config-path PATH]
 sealimg profile show web [--config-path PATH]
 sealimg profile add web --long-edge 2560 --quality 82 \
-  --wm-visible on --wm-invisible off --wm-style diag-low --wm-text "© You • site"
+  --wm-visible on --wm-invisible off --wm-invisible-mode auto \
+  --wm-style diag-low --wm-text "© You • site"
 ```
 
 ### `sealimg seal`
@@ -41,6 +42,7 @@ Seal images or folders.
 ```
 sealimg seal <paths...> [--recursive] [--profile NAME]
 [--wm-visible on|off] [--wm-invisible on|off]
+[--wm-invisible-mode auto|image-id|recipient|owner]
 [--bundle on|off] [--no-embed] [--id-prefix "IMG-"]
 [--author "..."] [--recipient-id "..."] [--site "..."] [--license "..."]
 [--output-root PATH] [--signing-key PATH]
@@ -57,6 +59,7 @@ Watch a directory and seal newly discovered images.
 ```
 sealimg watch <directory> [--recursive] [--profile NAME]
 [--wm-visible on|off] [--wm-invisible on|off]
+[--wm-invisible-mode auto|image-id|recipient|owner]
 [--bundle on|off] [--no-embed] [--id-prefix "IMG-"]
 [--author "..."] [--recipient-id "..."] [--site "..."] [--license "..."]
 [--output-root PATH] [--signing-key PATH] [--passphrase "..."]
@@ -64,7 +67,11 @@ sealimg watch <directory> [--recursive] [--profile NAME]
 [--timestamp-log PATH] [--timestamp-post-url URL]
 ```
 
-When `--recipient-id` is provided, Sealimg derives a deterministic per-image recipient fingerprint and stores it in `manifest.json` under `watermarks.invisible.recipient_fingerprint`.
+Invisible payload modes:
+- `auto` (default): use recipient fingerprint when `--recipient-id` is present, else use image ID.
+- `image-id`: always use image ID.
+- `recipient`: require `--recipient-id` and use recipient fingerprint.
+- `owner`: use deterministic owner fingerprint from author/site/signing key.
 
 ### `sealimg verify`
 Verify a sealed image or manifest.

@@ -28,6 +28,7 @@
   "watermarks": {
     "invisible": {
       "applied": false,
+      "mode": "auto",
       "payload": null
     },
     "visible": {

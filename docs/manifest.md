@@ -33,7 +33,7 @@ Each sealed image has a human-readable `manifest.json` that is also signed (`man
 
 * `title`, `notes`
 * `source`: `{ ai_assisted, ai_base, edited_by_human, tools[] }`
-* `watermarks`: `{ visible: {...}, invisible: {...} }`
+* `watermarks`: `{ visible: {...}, invisible: { applied, mode, payload, ... } }`
 * `timestamps.public_proof`: URL or reference where the manifest hash is published.
 * `links`: prior publication URLs (e.g., DeviantArt).
 
