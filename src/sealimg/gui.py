@@ -7,7 +7,63 @@ import contextlib
 import io
 import json
 import threading
+from pathlib import Path
 from typing import Sequence
+
+from .config import load_config
+
+
+def detect_bootstrap_needs(config_path: str) -> tuple[bool, bool]:
+    config_file = Path(config_path).expanduser()
+    if not config_file.exists():
+        return False, False
+    try:
+        cfg = load_config(config_file)
+    except Exception:
+        return False, True
+    signing_key = Path(cfg.signing_key).expanduser()
+    has_keys = signing_key.exists() and signing_key.with_suffix(".pub").exists()
+    return has_keys, False
+
+
+def infer_default_signer_name(config_path: str) -> str:
+    config_file = Path(config_path).expanduser()
+    if not config_file.exists():
+        return "sealimg"
+    try:
+        cfg = load_config(config_file)
+    except Exception:
+        return "sealimg"
+    author = cfg.author.strip()
+    if author and author != "Your Name":
+        return author
+    return "sealimg"
+
+
+def build_keygen_cli_args(
+    *,
+    config_path: str,
+    passphrase: str,
+    signer_name: str,
+    key_name: str = "sealimg",
+) -> list[str]:
+    cfg_path = Path(config_path).expanduser()
+    keys_dir = cfg_path.parent / "keys"
+    return [
+        "keygen",
+        "--ed25519",
+        "--name",
+        signer_name,
+        "--key-name",
+        key_name,
+        "--output-dir",
+        str(keys_dir),
+        "--passphrase",
+        passphrase,
+        "--config-path",
+        str(cfg_path),
+        "--write-config",
+    ]
 
 
 def build_seal_cli_args(
@@ -87,7 +143,7 @@ def run_gui(
 ) -> int:
     try:
         import tkinter as tk
-        from tkinter import filedialog, messagebox, ttk
+        from tkinter import filedialog, messagebox, simpledialog, ttk
     except Exception as exc:  # pragma: no cover - depends on runtime environment
         raise RuntimeError("Tkinter is required for sealimg gui") from exc
 
@@ -230,6 +286,43 @@ def run_gui(
         if not passphrase_var.get().strip():
             messagebox.showerror("Sealimg", "Passphrase is required.")
             return
+        has_keys, config_invalid = detect_bootstrap_needs(config_var.get().strip())
+        if config_invalid:
+            messagebox.showerror(
+                "Sealimg",
+                "Config file is invalid and cannot be read. Fix it or remove it and try again.",
+            )
+            return
+        if not has_keys:
+            consent = messagebox.askyesno(
+                "Sealimg setup",
+                "No signing key was found for this config. Generate one now?",
+            )
+            if not consent:
+                _append("Canceled: signing key is required to seal images.")
+                return
+            signer = infer_default_signer_name(config_var.get().strip())
+            signer = simpledialog.askstring(
+                "Signer name",
+                "Signer display name for the new key:",
+                initialvalue=signer,
+            )
+            if signer is None or not signer.strip():
+                _append("Canceled: signer name is required for key generation.")
+                return
+            _append("Generating signing key and initializing config...")
+            from . import cli as cli_module
+
+            keygen_args = build_keygen_cli_args(
+                config_path=config_var.get().strip(),
+                passphrase=passphrase_var.get().strip(),
+                signer_name=signer.strip(),
+            )
+            keygen_rc = cli_module.main(keygen_args)
+            if keygen_rc != 0:
+                messagebox.showerror("Sealimg", "Key generation failed. See output for details.")
+                return
+            _append("Key generation complete.")
         running["active"] = True
         run_btn.configure(state="disabled")
         _append("Starting seal run...")

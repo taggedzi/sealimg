@@ -84,6 +84,7 @@ Pass startup defaults if needed:
 ```bash
 sealimg-gui --config-path ~/.sealimg/config.yml --profile web --output-root ./sealed
 ```
+If no key exists yet, the GUI will offer to generate one and initialize config values first.
  
 ## Next Steps
 
