@@ -3,9 +3,10 @@
 This file is the operational handoff for future contributors and coding agents working in this repository.
 
 ## Project State
-- This repository is currently documentation-first (no implementation code yet).
-- Primary implementation plan is tracked in `TODO.md`.
-- GitHub issue decomposition is tracked in `docs/github-issues-plan.md`.
+- Repository now includes a working Python implementation and test suite.
+- Current release state: `v0.1.0-rc1` is prepared in `CHANGELOG.md` and smoke-tested manually.
+- Primary implementation plan remains tracked in `TODO.md`.
+- GitHub issue decomposition remains tracked in `docs/github-issues-plan.md`.
 
 ## Local Environment Notes
 - Primary (Windows/PowerShell) virtual environment is `./.venv`.
@@ -60,6 +61,25 @@ When documentation conflicts, use this order:
 - Maintain test fixtures and golden artifacts as behavior evolves.
 
 ## Next Actions (if resuming work)
-1. Create repository labels and milestones listed in `docs/github-issues-plan.md`.
-2. Create Epics 1-9 from the plan.
-3. Start implementation with Epic 1 child issues.
+1. Finalize tag/release flow:
+   - ensure `.smoke/` is removed before release commits/tags
+   - create/push tag `v0.1.0-rc1` (or `v0.1.0` when ready)
+   - publish GitHub release notes from `CHANGELOG.md`
+2. Re-enable strict branch protection posture:
+   - require PR merges
+   - require signed commits
+   - require status checks (`ruff`, `pytest`)
+3. Open follow-up issue: clarify/embed-status messaging between `master.png` and `web.jpg` outputs.
+
+## Session Handoff (2026-03-07)
+- Stop point: manual release smoke sequence completed successfully in WSL (`.ubuntu-venv`).
+- Smoke sequence results:
+  - `seal` (single): pass
+  - `seal` (batch): pass
+  - `watch --once`: pass
+  - `verify --json`: pass (`hash_valid=true`, `signature_valid=true`, `key_id_match=true`)
+  - `inspect --json`: pass
+- Notes:
+  - Key path mismatch was resolved by setting `--signing-key .smoke/keys/sealimg_ed25519.key`.
+  - `main` has been pushed to `origin/main`.
+  - User temporarily removed required-commit-signing branch rule; intention is to restore strong signing/protection policy later for evidentiary integrity.
