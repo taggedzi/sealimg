@@ -128,6 +128,23 @@ def test_resolve_config_dialog_start_dir_falls_back_to_default_parent(tmp_path: 
     assert out == str(default_cfg.parent)
 
 
+def test_resolve_output_root_dialog_start_dir_prefers_existing_dir(tmp_path: Path) -> None:
+    out_dir = tmp_path / "sealed"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out = gui.resolve_output_root_dialog_start_dir(str(out_dir), None)
+    assert out == str(out_dir)
+
+
+def test_resolve_output_root_dialog_start_dir_falls_back_to_default(tmp_path: Path) -> None:
+    default_out = tmp_path / "default-out"
+    default_out.mkdir(parents=True, exist_ok=True)
+    out = gui.resolve_output_root_dialog_start_dir(
+        str(tmp_path / "missing" / "nested" / "sealed"),
+        str(default_out),
+    )
+    assert out == str(default_out)
+
+
 def test_detect_bootstrap_needs_missing_config(tmp_path: Path) -> None:
     has_keys, invalid = gui.detect_bootstrap_needs(str(tmp_path / "missing.yml"))
     assert has_keys is False
