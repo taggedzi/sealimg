@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from PIL import Image
@@ -102,3 +103,60 @@ def test_watch_once_writes_timestamp_log(tmp_path: Path) -> None:
     line = build_hash_line(manifest, "IMG-TEST-LINE")
     append_hash_line(ts_log, line)
     assert "IMG-TEST-LINE" in ts_log.read_text(encoding="utf-8")
+
+
+def test_seal_sets_manifest_public_proof_from_timestamp_log(tmp_path: Path) -> None:
+    config_path, output_root, _ = _create_config_and_keys(tmp_path)
+    image_path = tmp_path / "single.png"
+    Image.new("RGB", (400, 300), color=(15, 25, 35)).save(image_path, format="PNG")
+    ts_log = tmp_path / "hashes.txt"
+
+    rc = main(
+        [
+            "seal",
+            str(image_path),
+            "--config-path",
+            str(config_path),
+            "--passphrase",
+            "watch-pass",
+            "--timestamp-log",
+            str(ts_log),
+        ]
+    )
+    assert rc == 0
+    sealed_dir = next(p for p in output_root.iterdir() if p.is_dir())
+    manifest = sealed_dir / "manifest.json"
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    assert payload["timestamps"]["public_proof"] == str(ts_log.resolve())
+
+
+def test_seal_sets_manifest_public_proof_prefers_post_url(
+    tmp_path: Path, monkeypatch
+) -> None:
+    config_path, output_root, _ = _create_config_and_keys(tmp_path)
+    image_path = tmp_path / "single2.png"
+    Image.new("RGB", (420, 280), color=(45, 55, 65)).save(image_path, format="PNG")
+    ts_log = tmp_path / "hashes.txt"
+    post_url = "https://example.test/proofs"
+
+    monkeypatch.setattr("sealimg.cli.post_hash_line", lambda *args, **kwargs: None)
+
+    rc = main(
+        [
+            "seal",
+            str(image_path),
+            "--config-path",
+            str(config_path),
+            "--passphrase",
+            "watch-pass",
+            "--timestamp-log",
+            str(ts_log),
+            "--timestamp-post-url",
+            post_url,
+        ]
+    )
+    assert rc == 0
+    sealed_dir = next(p for p in output_root.iterdir() if p.is_dir())
+    manifest = sealed_dir / "manifest.json"
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    assert payload["timestamps"]["public_proof"] == post_url

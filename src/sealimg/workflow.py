@@ -102,6 +102,7 @@ def seal_image(
     passphrase: str,
     signer_name: str,
     public_key_path: Path,
+    public_proof: str | None = None,
     image_id_override: str | None = None,
 ) -> SealResult:
     detect_format(input_path)
@@ -176,6 +177,8 @@ def seal_image(
             "signature_file": signature_path.name,
         },
     }
+    if public_proof:
+        manifest_payload["timestamps"]["public_proof"] = public_proof
     manifest_payload = update_manifest_file_hashes(
         manifest_payload, master_path=master_path, web_path=web_path
     )

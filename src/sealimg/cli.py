@@ -241,6 +241,10 @@ def _seal_inputs(
     id_gen = ImageIdGenerator(prefix=args.id_prefix)
     exit_code = 0
     json_results: list[dict[str, object]] = []
+    public_proof = _resolve_public_proof_reference(
+        timestamp_log=args.timestamp_log,
+        timestamp_post_url=args.timestamp_post_url,
+    )
 
     for image in inputs:
         try:
@@ -258,6 +262,7 @@ def _seal_inputs(
                 passphrase=passphrase,
                 signer_name=metadata.author,
                 public_key_path=public_key,
+                public_proof=public_proof,
             )
 
             timestamp_line: str | None = None
@@ -324,6 +329,18 @@ def _seal_inputs(
             exit_code = 1
 
     return exit_code, json_results
+
+
+def _resolve_public_proof_reference(
+    *,
+    timestamp_log: str | None,
+    timestamp_post_url: str | None,
+) -> str | None:
+    if timestamp_post_url:
+        return timestamp_post_url
+    if timestamp_log:
+        return str(Path(timestamp_log).expanduser().resolve())
+    return None
 
 
 def main(argv: Sequence[str] | None = None) -> int:

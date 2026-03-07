@@ -48,6 +48,10 @@ sealimg seal <paths...> [--recursive] [--profile NAME]
 [--timestamp-log PATH] [--timestamp-post-url URL]
 ```
 
+When timestamp flags are used, `manifest.json` includes `timestamps.public_proof`:
+- `--timestamp-post-url`: set to the URL value.
+- `--timestamp-log` only: set to the resolved local log path.
+
 ### `sealimg watch`
 Watch a directory and seal newly discovered images.
 ```
