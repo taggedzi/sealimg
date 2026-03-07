@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from sealimg import gui
-from sealimg.config import SealimgConfig, save_config
+from sealimg.config import SealimgConfig, load_config, save_config
 
 
 def test_has_tkinterdnd2_reflects_find_spec(monkeypatch) -> None:
@@ -143,6 +143,57 @@ def test_resolve_output_root_dialog_start_dir_falls_back_to_default(tmp_path: Pa
         str(default_out),
     )
     assert out == str(default_out)
+
+
+def test_select_profile_name_prefers_web_when_available() -> None:
+    assert gui.select_profile_name(["print", "web"], requested=None) == "web"
+    assert gui.select_profile_name(["print", "web"], requested="print") == "print"
+    assert gui.select_profile_name(["print"], requested=None) == "print"
+
+
+def test_load_profile_choices_defaults_to_web_when_config_missing(tmp_path: Path) -> None:
+    names, selected = gui.load_profile_choices(str(tmp_path / "missing.yml"), requested=None)
+    assert names == ["web"]
+    assert selected == "web"
+
+
+def test_profile_upsert_and_delete_helpers(tmp_path: Path) -> None:
+    cfg_path = tmp_path / "config.yml"
+    cfg = SealimgConfig.from_dict(
+        {
+            "author": "Tester",
+            "website": "https://example.com",
+            "license": "CC BY-NC 4.0",
+            "default_profile": "web",
+            "output_root": "./sealed",
+            "signing_key": str(tmp_path / "keys" / "sealimg_ed25519.key"),
+            "profiles": {"web": {"long_edge": 2560, "jpeg_quality": 82}},
+        }
+    )
+    save_config(cfg_path, cfg)
+
+    gui.upsert_profile_in_config(
+        str(cfg_path),
+        profile_name="print",
+        long_edge=6000,
+        quality=95,
+        wm_visible_enabled=False,
+        wm_invisible_enabled=True,
+        wm_invisible_mode="owner",
+        wm_style="diag-low",
+        wm_text="",
+        make_default=True,
+    )
+    updated = load_config(cfg_path)
+    assert "print" in updated.profiles
+    assert updated.default_profile == "print"
+    assert updated.profiles["print"]["wm_invisible"]["mode"] == "owner"
+
+    new_default = gui.delete_profile_from_config(str(cfg_path), "print")
+    updated2 = load_config(cfg_path)
+    assert new_default == "web"
+    assert updated2.default_profile == "web"
+    assert "print" not in updated2.profiles
 
 
 def test_detect_bootstrap_needs_missing_config(tmp_path: Path) -> None:
