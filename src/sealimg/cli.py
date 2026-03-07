@@ -285,6 +285,10 @@ def _seal_inputs(
                     "sha256": str(result.sha_path),
                     "readme": str(result.readme_path),
                     "bundle": str(result.zip_path) if result.zip_path else None,
+                    "phash": {
+                        "master": result.master_phash,
+                        "web": result.web_phash,
+                    },
                     "embed_status": result.web_embed_status.status,
                     "embed_message": result.web_embed_status.message,
                     "embed": {
@@ -308,6 +312,8 @@ def _seal_inputs(
             if not args.json:
                 print(f"Sealed {image} -> {result.output_dir}")
                 print("Embed status:")
+                print(f"pHash master: {result.master_phash}")
+                print(f"pHash web: {result.web_phash}")
                 print(
                     f"  master: {result.master_embed_status.status} "
                     f"({result.master_embed_status.message})"
@@ -622,6 +628,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "signature_valid": result.signature_valid,
                         "key_id_match": result.key_id_match,
                         "hash_valid": result.hash_valid,
+                        "phash": {
+                            "master": result.master_phash,
+                            "web": result.web_phash,
+                        },
                         "embed_status": result.web_embed_status.status,
                         "embed_message": result.web_embed_status.message,
                         "embed": {
@@ -645,6 +655,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"Key ID: {'match' if result.key_id_match else 'mismatch'}")
         print(f"Signature: {'valid' if result.signature_valid else 'invalid'}")
         print(f"Hashes: {'valid' if result.hash_valid else 'invalid'}")
+        print(f"pHash master: {result.master_phash or 'n/a'}")
+        print(f"pHash web: {result.web_phash or 'n/a'}")
         print("Embed markers:")
         print(f"  master: {result.master_embed_status.status}")
         print(f"  web: {result.web_embed_status.status}")
@@ -672,6 +684,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "width": result.width,
                         "height": result.height,
                         "xmp": result.has_xmp,
+                        "phash": result.phash,
                         "embed_status": result.embed_status.status,
                         "embed_message": result.embed_status.message,
                         "embed": {
@@ -691,6 +704,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"Format: {result.format}")
         print(f"Size: {result.width}x{result.height}")
         print(f"XMP: {'present' if result.has_xmp else 'absent'}")
+        print(f"pHash: {result.phash}")
         print(f"Embed markers: {result.embed_status.status} ({result.embed_status.message})")
         if result.artifact_embed_statuses:
             print("Embed markers by artifact:")
