@@ -71,6 +71,20 @@ sealimg seal ./my-portfolio --recursive --profile web \
   --passphrase "choose-a-strong-passphrase"
 ```
 
+## 7) Launch the desktop GUI (optional)
+
+After install, either command starts the same local GUI:
+```bash
+sealimg gui
+# or
+sealimg-gui
+```
+
+Pass startup defaults if needed:
+```bash
+sealimg-gui --config-path ~/.sealimg/config.yml --profile web --output-root ./sealed
+```
+ 
 ## Next Steps
 
 * See `docs/cli.md` for all commands.

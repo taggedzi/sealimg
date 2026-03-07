@@ -25,6 +25,7 @@ dev = [
 
 [project.scripts]
 sealimg = "sealimg.cli:main"
+sealimg-gui = "sealimg.gui:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }

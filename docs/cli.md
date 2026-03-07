@@ -90,6 +90,10 @@ Launches the local desktop GUI for sealing workflows.
 ```
 sealimg gui [--config-path PATH] [--profile NAME] [--output-root PATH]
 ```
+Standalone entrypoint (same behavior):
+```
+sealimg-gui [--config-path PATH] [--profile NAME] [--output-root PATH]
+```
 
 ## Exit Codes
 - `0` success

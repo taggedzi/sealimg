@@ -2,10 +2,81 @@
 
 from __future__ import annotations
 
+import argparse
 import contextlib
 import io
 import json
 import threading
+from typing import Sequence
+
+
+def build_seal_cli_args(
+    *,
+    paths: list[str],
+    recursive: bool,
+    profile: str,
+    wm_visible: bool,
+    wm_invisible: bool,
+    bundle: bool,
+    no_embed: bool,
+    recipient_id: str,
+    output_root: str,
+    config_path: str,
+    passphrase: str,
+) -> list[str]:
+    args = ["seal"]
+    args.extend(paths)
+    if recursive:
+        args.append("--recursive")
+    if profile.strip():
+        args.extend(["--profile", profile.strip()])
+    args.extend(["--wm-visible", "on" if wm_visible else "off"])
+    args.extend(["--wm-invisible", "on" if wm_invisible else "off"])
+    args.extend(["--bundle", "on" if bundle else "off"])
+    if no_embed:
+        args.append("--no-embed")
+    if recipient_id.strip():
+        args.extend(["--recipient-id", recipient_id.strip()])
+    if output_root.strip():
+        args.extend(["--output-root", output_root.strip()])
+    if config_path.strip():
+        args.extend(["--config-path", config_path.strip()])
+    if passphrase.strip():
+        args.extend(["--passphrase", passphrase.strip()])
+    args.append("--json")
+    return args
+
+
+def extract_last_json_object(text: str) -> dict[str, object] | None:
+    if not text:
+        return None
+    try:
+        payload = json.loads(text.splitlines()[-1])
+    except Exception:
+        return None
+    if isinstance(payload, dict):
+        return payload
+    return None
+
+
+def build_gui_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="sealimg-gui",
+        description="Launch the local Sealimg desktop GUI.",
+    )
+    parser.add_argument("--config-path", default="~/.sealimg/config.yml")
+    parser.add_argument("--profile", default=None)
+    parser.add_argument("--output-root", default=None)
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = build_gui_parser().parse_args(argv)
+    return run_gui(
+        config_path=args.config_path,
+        default_profile=args.profile,
+        default_output_root=args.output_root,
+    )
 
 
 def run_gui(
@@ -136,27 +207,19 @@ def run_gui(
         output.see(tk.END)
 
     def _build_cli_args() -> list[str]:
-        args = ["seal"]
-        args.extend(paths)
-        if recursive_var.get():
-            args.append("--recursive")
-        if profile_var.get().strip():
-            args.extend(["--profile", profile_var.get().strip()])
-        args.extend(["--wm-visible", "on" if wm_visible_var.get() else "off"])
-        args.extend(["--wm-invisible", "on" if wm_invisible_var.get() else "off"])
-        args.extend(["--bundle", "on" if bundle_var.get() else "off"])
-        if no_embed_var.get():
-            args.append("--no-embed")
-        if recipient_var.get().strip():
-            args.extend(["--recipient-id", recipient_var.get().strip()])
-        if output_root_var.get().strip():
-            args.extend(["--output-root", output_root_var.get().strip()])
-        if config_var.get().strip():
-            args.extend(["--config-path", config_var.get().strip()])
-        if passphrase_var.get().strip():
-            args.extend(["--passphrase", passphrase_var.get().strip()])
-        args.append("--json")
-        return args
+        return build_seal_cli_args(
+            paths=paths,
+            recursive=recursive_var.get(),
+            profile=profile_var.get(),
+            wm_visible=wm_visible_var.get(),
+            wm_invisible=wm_invisible_var.get(),
+            bundle=bundle_var.get(),
+            no_embed=no_embed_var.get(),
+            recipient_id=recipient_var.get(),
+            output_root=output_root_var.get(),
+            config_path=config_var.get(),
+            passphrase=passphrase_var.get(),
+        )
 
     def _run_seal() -> None:
         if running["active"]:
@@ -180,16 +243,12 @@ def run_gui(
                 with contextlib.redirect_stdout(buffer):
                     rc = cli_module.main(cli_args)
                 text = buffer.getvalue().strip()
-                payload = None
+                payload: dict[str, object] | None = None
                 if text:
                     for line in text.splitlines():
                         root.after(0, lambda line=line: _append(line))
-                    last_line = text.splitlines()[-1]
-                    try:
-                        payload = json.loads(last_line)
-                    except Exception:
-                        payload = None
-                if payload and isinstance(payload, dict):
+                    payload = extract_last_json_object(text)
+                if payload:
                     count = payload.get("count", 0)
                     ok = payload.get("ok", False)
                     root.after(
