@@ -174,6 +174,21 @@ def resolve_config_dialog_start_dir(current_path: str, default_path: str) -> str
     return str(Path.cwd())
 
 
+def resolve_output_root_dialog_start_dir(current_path: str, default_path: str | None) -> str:
+    candidate = Path(current_path).expanduser()
+    if candidate.exists() and candidate.is_dir():
+        return str(candidate)
+    if candidate.parent.exists():
+        return str(candidate.parent)
+    if default_path:
+        fallback = Path(default_path).expanduser()
+        if fallback.exists() and fallback.is_dir():
+            return str(fallback)
+        if fallback.parent.exists():
+            return str(fallback.parent)
+    return str(Path.cwd())
+
+
 def build_gui_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="sealimg-gui",
@@ -242,6 +257,7 @@ def run_gui(
     controls.pack(fill="x")
 
     default_config_path = config_path
+    default_output_root_path = default_output_root
 
     ttk.Label(controls, text="Config path").grid(row=0, column=0, sticky="w")
     ttk.Entry(controls, textvariable=config_var, width=48).grid(
@@ -266,8 +282,21 @@ def run_gui(
         row=1, column=1, sticky="w", padx=6
     )
     ttk.Label(controls, text="Output root").grid(row=2, column=0, sticky="w")
-    ttk.Entry(controls, textvariable=output_root_var, width=56).grid(
+    ttk.Entry(controls, textvariable=output_root_var, width=48).grid(
         row=2, column=1, sticky="ew", padx=6
+    )
+    def _browse_output_root() -> None:
+        current = output_root_var.get().strip()
+        selected = filedialog.askdirectory(
+            title="Select output root folder",
+            initialdir=resolve_output_root_dialog_start_dir(current, default_output_root_path),
+            mustexist=False,
+        )
+        if selected:
+            output_root_var.set(str(selected))
+
+    ttk.Button(controls, text="Browse...", command=_browse_output_root).grid(
+        row=2, column=2, sticky="w"
     )
     ttk.Label(controls, text="Recipient ID").grid(row=3, column=0, sticky="w")
     ttk.Entry(controls, textvariable=recipient_var, width=56).grid(
