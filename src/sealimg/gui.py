@@ -271,6 +271,21 @@ def delete_profile_from_config(config_path: str, profile_name: str) -> str:
     return data["default_profile"]
 
 
+def derive_profile_watermark_state(profile: dict[str, object] | None) -> dict[str, object]:
+    data = profile or {}
+    wm_visible = data.get("wm_visible", {})
+    wm_invisible = data.get("wm_invisible", {})
+    visible_get = getattr(wm_visible, "get", lambda *_: None)
+    invisible_get = getattr(wm_invisible, "get", lambda *_: None)
+    return {
+        "visible_enabled": bool(visible_get("enabled", True)),
+        "visible_style": str(visible_get("style", "diag-low")),
+        "visible_text": str(visible_get("text", "")),
+        "invisible_enabled": bool(invisible_get("enabled", False)),
+        "invisible_mode": str(invisible_get("mode", "auto")),
+    }
+
+
 def build_gui_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="sealimg-gui",
@@ -329,6 +344,11 @@ def run_gui(
     wm_visible_var = tk.BooleanVar(value=True)
     wm_invisible_var = tk.BooleanVar(value=False)
     wm_invisible_mode_var = tk.StringVar(value="auto")
+    wm_visible_summary_var = tk.StringVar(value="On")
+    wm_invisible_summary_var = tk.StringVar(value="Off")
+    wm_invisible_mode_summary_var = tk.StringVar(value="auto")
+    wm_visible_style_summary_var = tk.StringVar(value="diag-low")
+    wm_visible_text_summary_var = tk.StringVar(value="")
     bundle_var = tk.BooleanVar(value=False)
     no_embed_var = tk.BooleanVar(value=False)
 
@@ -390,30 +410,43 @@ def run_gui(
     )
     controls.columnconfigure(1, weight=1)
 
+    profile_info = ttk.LabelFrame(frame, text="Profile watermark settings (read-only)")
+    profile_info.pack(fill="x", pady=(8, 6))
+    ttk.Label(profile_info, text="Visible").grid(row=0, column=0, sticky="w", padx=(8, 2), pady=6)
+    ttk.Label(profile_info, textvariable=wm_visible_summary_var).grid(
+        row=0, column=1, sticky="w", padx=(0, 12), pady=6
+    )
+    ttk.Label(profile_info, text="Invisible").grid(row=0, column=2, sticky="w", padx=(0, 2), pady=6)
+    ttk.Label(profile_info, textvariable=wm_invisible_summary_var).grid(
+        row=0, column=3, sticky="w", padx=(0, 12), pady=6
+    )
+    ttk.Label(profile_info, text="Mode").grid(row=0, column=4, sticky="w", padx=(0, 2), pady=6)
+    ttk.Label(profile_info, textvariable=wm_invisible_mode_summary_var).grid(
+        row=0, column=5, sticky="w", padx=(0, 12), pady=6
+    )
+    ttk.Label(profile_info, text="Visible style").grid(
+        row=1, column=0, sticky="w", padx=(8, 2), pady=(0, 6)
+    )
+    ttk.Label(profile_info, textvariable=wm_visible_style_summary_var).grid(
+        row=1, column=1, sticky="w", columnspan=2, pady=(0, 6)
+    )
+    ttk.Label(profile_info, text="Visible text").grid(
+        row=1, column=3, sticky="w", padx=(0, 2), pady=(0, 6)
+    )
+    ttk.Label(profile_info, textvariable=wm_visible_text_summary_var).grid(
+        row=1, column=4, sticky="w", columnspan=2, pady=(0, 6)
+    )
+
     flags = ttk.Frame(frame)
-    flags.pack(fill="x", pady=(8, 6))
+    flags.pack(fill="x", pady=(0, 6))
     ttk.Checkbutton(flags, text="Recursive", variable=recursive_var).grid(
         row=0, column=0, sticky="w"
     )
-    ttk.Checkbutton(flags, text="Visible watermark", variable=wm_visible_var).grid(
+    ttk.Checkbutton(flags, text="Bundle ZIP", variable=bundle_var).grid(
         row=0, column=1, sticky="w", padx=10
     )
-    ttk.Checkbutton(flags, text="Invisible watermark", variable=wm_invisible_var).grid(
-        row=0, column=2, sticky="w", padx=10
-    )
-    ttk.Label(flags, text="Invisible mode").grid(row=1, column=0, sticky="w", pady=(6, 0))
-    ttk.Combobox(
-        flags,
-        state="readonly",
-        values=("auto", "image-id", "recipient", "owner"),
-        textvariable=wm_invisible_mode_var,
-        width=14,
-    ).grid(row=1, column=1, sticky="w", pady=(6, 0))
-    ttk.Checkbutton(flags, text="Bundle ZIP", variable=bundle_var).grid(
-        row=0, column=3, sticky="w", padx=10
-    )
     ttk.Checkbutton(flags, text="No embed", variable=no_embed_var).grid(
-        row=0, column=4, sticky="w", padx=10
+        row=0, column=2, sticky="w", padx=10
     )
 
     paths_frame = ttk.LabelFrame(frame, text="Input files or folders")
@@ -483,11 +516,23 @@ def run_gui(
                 cfg_path,
                 requested=preferred or profile_var.get(),
             )
+            cfg_path_obj = Path(cfg_path).expanduser()
+            cfg = load_config(cfg_path_obj) if cfg_path_obj.exists() else None
         except Exception as exc:
             messagebox.showerror("Sealimg", f"Unable to load profiles: {exc}")
             return
         profile_combo["values"] = names
         profile_var.set(selected)
+        profile_data = cfg.profiles.get(selected) if cfg else {}
+        state = derive_profile_watermark_state(profile_data)
+        wm_visible_var.set(bool(state["visible_enabled"]))
+        wm_invisible_var.set(bool(state["invisible_enabled"]))
+        wm_invisible_mode_var.set(str(state["invisible_mode"]))
+        wm_visible_summary_var.set("On" if wm_visible_var.get() else "Off")
+        wm_invisible_summary_var.set("On" if wm_invisible_var.get() else "Off")
+        wm_invisible_mode_summary_var.set(wm_invisible_mode_var.get())
+        wm_visible_style_summary_var.set(str(state["visible_style"]))
+        wm_visible_text_summary_var.set(str(state["visible_text"]) or "(empty)")
 
     def _open_profile_manager() -> None:
         cfg_path = config_var.get().strip()
@@ -680,6 +725,10 @@ def run_gui(
         row=1, column=2, sticky="w"
     )
     _refresh_profiles(preferred=default_profile or "web")
+    profile_combo.bind(
+        "<<ComboboxSelected>>",
+        lambda _event: _refresh_profiles(preferred=profile_var.get()),
+    )
 
     def _build_cli_args() -> list[str]:
         return build_seal_cli_args(

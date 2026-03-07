@@ -88,6 +88,7 @@ If no key exists yet, the GUI will offer to generate one and initialize config v
 You can also click `Setup keys` in the GUI before your first seal run.
 Drag-and-drop into the input list uses `tkinterdnd2` when available.
 The Profile control is a dropdown, and `Manage...` opens a modal to add/edit/delete profiles.
+Watermark controls in the main GUI are read-only and reflect the selected profile settings.
  
 ## Next Steps
 

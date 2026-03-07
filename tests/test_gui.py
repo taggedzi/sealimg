@@ -151,6 +151,27 @@ def test_select_profile_name_prefers_web_when_available() -> None:
     assert gui.select_profile_name(["print"], requested=None) == "print"
 
 
+def test_derive_profile_watermark_state_defaults() -> None:
+    state = gui.derive_profile_watermark_state(None)
+    assert state["visible_enabled"] is True
+    assert state["invisible_enabled"] is False
+    assert state["invisible_mode"] == "auto"
+
+
+def test_derive_profile_watermark_state_from_profile_values() -> None:
+    state = gui.derive_profile_watermark_state(
+        {
+            "wm_visible": {"enabled": False, "style": "flat", "text": "© tester"},
+            "wm_invisible": {"enabled": True, "mode": "owner"},
+        }
+    )
+    assert state["visible_enabled"] is False
+    assert state["visible_style"] == "flat"
+    assert state["visible_text"] == "© tester"
+    assert state["invisible_enabled"] is True
+    assert state["invisible_mode"] == "owner"
+
+
 def test_load_profile_choices_defaults_to_web_when_config_missing(tmp_path: Path) -> None:
     names, selected = gui.load_profile_choices(str(tmp_path / "missing.yml"), requested=None)
     assert names == ["web"]
