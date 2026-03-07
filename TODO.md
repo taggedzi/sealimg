@@ -61,8 +61,8 @@ This TODO is derived from `README.md`, `docs/`, `design/`, and `specs/` and is i
 ## 5) C2PA / Embedding Strategy
 - [x] Implement sidecar-first contract: always produce `manifest.json` + `manifest.sig`.
 - [x] Implement best-effort embed attempt:
-  - [ ] JPEG JUMBF/APP11 path
-  - [ ] PNG ancillary chunk path
+  - [x] JPEG JUMBF/APP11 path
+  - [x] PNG ancillary chunk path
 - [x] Record embed success/failure in CLI output and inspect results.
 - [x] Ensure sealing continues when embed fails (no hard failure unless explicitly requested).
 - [x] Define adapter boundary for future AVIF/HEIC/JPEG XL.
@@ -101,8 +101,8 @@ This TODO is derived from `README.md`, `docs/`, `design/`, and `specs/` and is i
 - [ ] Metadata tests:
   - [ ] IPTC/XMP mappings match `specs/iptc-xmp-mapping.md`
 - [ ] Embed tests:
-  - [ ] embed success path (where library support exists)
-  - [ ] sidecar fallback path
+  - [x] embed success path (where library support exists)
+  - [x] sidecar fallback path
 - [ ] Mutation tests:
   - [ ] metadata stripped case still verifies via sidecar
   - [x] modified file causes hash mismatch

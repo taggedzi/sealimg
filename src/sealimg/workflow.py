@@ -129,6 +129,7 @@ def seal_image(
             ),
         ),
     )
+    embed_status = attempt_embed_claim(web_path, manifest_path, enabled=embed_enabled)
 
     manifest_payload = {
         "schema": MANIFEST_SCHEMA_V1,
@@ -188,8 +189,6 @@ def seal_image(
             zip_path,
             [master_path, web_path, manifest_path, signature_path, sha_path, readme_path],
         )
-
-    embed_status = attempt_embed_claim(web_path, manifest_path, enabled=embed_enabled)
     return SealResult(
         input_path=input_path,
         image_id=image_id,
