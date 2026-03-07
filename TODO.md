@@ -111,7 +111,7 @@ This TODO is derived from `README.md`, `docs/`, `design/`, and `specs/` and is i
   - [ ] non-ASCII filenames
 - [ ] Regression fixtures:
   - [ ] golden manifest snapshots
-  - [ ] golden hashes/signatures
+  - [x] golden hashes/signatures
 
 ## 9) Documentation Completion Gates
 - [x] Replace install placeholder in `docs/quickstart.md` with real instructions.
