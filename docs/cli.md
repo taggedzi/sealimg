@@ -70,7 +70,8 @@ Verification checks:
 - Signature validity
 - Signer key ID match (public key fingerprint against manifest key ID)
 - File hash consistency (`master`, `web`)
-- Embedded marker detection status
+- Embedded marker detection status (reported separately for `master` and `web`)
+- Sidecar availability (`manifest.json` + `manifest.sig`)
 
 ### `sealimg inspect`
 Prints metadata and embedded structures in plain English.
@@ -85,6 +86,6 @@ sealimg inspect <image> [--json]
 - `3` unsupported format
 
 ## Machine-Readable Output
-- `seal --json`: emits summary JSON with outputs per input.
-- `verify --json`: emits signature/hash/embed status JSON and exit code compatibility.
-- `inspect --json`: emits image format/size/metadata/embed status JSON.
+- `seal --json`: emits summary JSON with outputs per input plus per-artifact embed status under `embed.master` and `embed.web`, and sidecar availability under `sidecar.available`.
+- `verify --json`: emits signature/hash results plus per-artifact embed detection under `embed.master` and `embed.web`, and sidecar availability.
+- `inspect --json`: emits image format/size/metadata and package-aware embed status map under `embed` (typically `master` + `web` when sidecar is present), plus sidecar availability.

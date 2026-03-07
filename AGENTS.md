@@ -1,4 +1,4 @@
-# AGENT.md
+# AGENTS.md
 
 This file is the operational handoff for future contributors and coding agents working in this repository.
 
@@ -61,15 +61,17 @@ When documentation conflicts, use this order:
 - Maintain test fixtures and golden artifacts as behavior evolves.
 
 ## Next Actions (if resuming work)
-1. Finalize tag/release flow:
-   - ensure `.smoke/` is removed before release commits/tags
-   - create/push tag `v0.1.0-rc1` (or `v0.1.0` when ready)
-   - publish GitHub release notes from `CHANGELOG.md`
-2. Re-enable strict branch protection posture:
-   - require PR merges
-   - require signed commits
-   - require status checks (`ruff`, `pytest`)
-3. Open follow-up issue: clarify/embed-status messaging between `master.png` and `web.jpg` outputs.
+1. Keep PR-only branch workflow active:
+   - all changes on feature branches
+   - signed commits required
+   - merge via PR after required checks pass
+2. Complete follow-up issue #14:
+   - clarify per-artifact embed-status messaging for `master` and `web`
+   - keep JSON output stable for `seal`, `verify`, and `inspect`
+   - add mixed-result tests and docs examples
+3. Begin next roadmap milestone:
+   - v0.5 invisible watermark implementation
+   - v0.5 public timestamp helper improvements
 
 ## Session Handoff (2026-03-07)
 - Stop point: manual release smoke sequence completed successfully in WSL (`.ubuntu-venv`).
