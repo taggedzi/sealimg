@@ -12,7 +12,9 @@ license = { text = "MIT" }
 authors = [
   { name = "Sealimg Contributors" }
 ]
-dependencies = []
+dependencies = [
+  "cryptography>=42.0.0"
+]
 
 [project.optional-dependencies]
 dev = [

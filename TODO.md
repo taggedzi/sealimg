@@ -21,15 +21,15 @@ This TODO is derived from `README.md`, `docs/`, `design/`, and `specs/` and is i
 - [x] Implement profile resolution (config defaults < profile < CLI overrides).
 
 ## 2) Key Management & Signing
-- [ ] Implement `sealimg keygen`:
-  - [ ] Ed25519 default
-  - [ ] RSA-2048+ optional
-  - [ ] Import existing key path support
-- [ ] Encrypt private keys at rest and enforce passphrase prompt on signing.
-- [ ] Implement `sealimg key show` (public key and fingerprint output).
-- [ ] Implement detached signature generation for `manifest.json` -> `manifest.sig`.
-- [ ] Implement signature verification independent of embed status.
-- [ ] Add revocation list support (local text file + verify warning state).
+- [x] Implement `sealimg keygen`:
+  - [x] Ed25519 default
+  - [x] RSA-2048+ optional
+  - [x] Import existing key path support
+- [x] Encrypt private keys at rest and enforce passphrase prompt on signing.
+- [x] Implement `sealimg key show` (public key and fingerprint output).
+- [x] Implement detached signature generation for `manifest.json` -> `manifest.sig`.
+- [x] Implement signature verification independent of embed status.
+- [x] Add revocation list support (local text file + verify warning state).
 
 ## 3) Metadata & File Processing
 - [ ] Add PNG/JPEG input loading and normalization.
