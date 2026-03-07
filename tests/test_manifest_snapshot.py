@@ -103,3 +103,46 @@ def test_manifest_uses_image_id_for_invisible_payload_when_enabled(tmp_path: Pat
     payload = json.loads(result.manifest_path.read_text(encoding="utf-8"))
     assert payload["watermarks"]["invisible"]["applied"] is True
     assert payload["watermarks"]["invisible"]["payload"] == "IMG-TEST-0002"
+    assert payload["watermarks"]["invisible"]["mode"] == "auto"
+
+
+def test_manifest_uses_owner_payload_when_mode_owner(tmp_path: Path) -> None:
+    fixture = Path("tests/fixtures/images/mj-1/0096b6ad-14bf-4559-941f-fa02c8fc4583.png")
+    key_info = generate_keypair(
+        output_dir=tmp_path / "keys",
+        signer="Tester",
+        passphrase="test-passphrase",
+        algorithm="ed25519",
+        key_name="snapshot",
+    )
+
+    result = seal_image(
+        input_path=fixture,
+        output_root=tmp_path / "sealed",
+        id_generator=ImageIdGenerator(prefix="IMG"),
+        metadata=MetadataFields(
+            author="Tester",
+            website="https://example.test",
+            license="CC BY-NC 4.0",
+            copyright_notice="(c) Tester",
+        ),
+        profile_defaults={},
+        selected_profile={
+            "long_edge": 2560,
+            "jpeg_quality": 82,
+            "wm_visible": {"enabled": False, "text": "", "style": "diag-low"},
+            "wm_invisible": {"enabled": True, "mode": "owner"},
+        },
+        cli_overrides={},
+        bundle=False,
+        embed_enabled=True,
+        signing_key_path=key_info.paths.private_key,
+        passphrase="test-passphrase",
+        signer_name="Tester",
+        public_key_path=key_info.paths.public_key,
+        image_id_override="IMG-TEST-0003",
+    )
+    payload = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    assert payload["watermarks"]["invisible"]["mode"] == "owner"
+    assert payload["watermarks"]["invisible"]["payload"] == result.owner_fingerprint
+    assert payload["watermarks"]["invisible"]["owner_fingerprint"] == result.owner_fingerprint

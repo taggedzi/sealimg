@@ -380,3 +380,68 @@ def test_seal_recipient_id_generates_recipient_fingerprint(tmp_path: Path, capsy
     payload = json.loads(manifest.read_text(encoding="utf-8"))
     assert payload["watermarks"]["invisible"]["recipient_fingerprint"] == fingerprint
     assert payload["watermarks"]["invisible"]["payload"] == fingerprint
+
+
+def test_seal_owner_mode_generates_owner_fingerprint(tmp_path: Path, capsys) -> None:
+    _, config_path, _ = _setup_sealed_artifact(tmp_path)
+    capsys.readouterr()
+    image_path = tmp_path / "owner.png"
+    Image.new("RGB", (640, 420), color=(30, 40, 50)).save(image_path, format="PNG")
+
+    rc = main(
+        [
+            "seal",
+            str(image_path),
+            "--config-path",
+            str(config_path),
+            "--passphrase",
+            "test-passphrase",
+            "--wm-invisible",
+            "on",
+            "--wm-invisible-mode",
+            "owner",
+            "--json",
+        ]
+    )
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    result = out["results"][0]
+    assert result["invisible_mode"] == "owner"
+    owner_fp = result["owner_fingerprint"]
+    assert isinstance(owner_fp, str)
+    assert len(owner_fp) == 16
+    manifest = Path(result["manifest"])
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    assert payload["watermarks"]["invisible"]["mode"] == "owner"
+    assert payload["watermarks"]["invisible"]["owner_fingerprint"] == owner_fp
+    assert payload["watermarks"]["invisible"]["payload"] == owner_fp
+
+
+def test_seal_recipient_mode_requires_recipient_id(tmp_path: Path, capsys) -> None:
+    _, config_path, _ = _setup_sealed_artifact(tmp_path)
+    capsys.readouterr()
+    image_path = tmp_path / "recipient-required.png"
+    Image.new("RGB", (640, 420), color=(80, 50, 30)).save(image_path, format="PNG")
+
+    rc = main(
+        [
+            "seal",
+            str(image_path),
+            "--config-path",
+            str(config_path),
+            "--passphrase",
+            "test-passphrase",
+            "--wm-invisible",
+            "on",
+            "--wm-invisible-mode",
+            "recipient",
+            "--json",
+        ]
+    )
+    assert rc == 1
+    out = json.loads(capsys.readouterr().out)
+    assert out["ok"] is False
+    assert out["count"] == 0
+    assert out["error_count"] == 1
+    assert out["errors"][0]["code"] == "seal_failed"
+    assert "requires --recipient-id" in out["errors"][0]["message"]

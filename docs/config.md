@@ -29,6 +29,7 @@ profiles:
       style: "diag-low"
     wm_invisible:
       enabled: false
+      mode: "auto"
   print:
     long_edge: 6000
     jpeg_quality: 95
@@ -36,6 +37,7 @@ profiles:
       enabled: false
     wm_invisible:
       enabled: true
+      mode: "owner"
 ````
 
 ## Profiles

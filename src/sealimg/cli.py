@@ -114,6 +114,11 @@ def build_parser() -> argparse.ArgumentParser:
     seal.add_argument("--profile", default=None)
     seal.add_argument("--wm-visible", choices=["on", "off"], default=None)
     seal.add_argument("--wm-invisible", choices=["on", "off"], default=None)
+    seal.add_argument(
+        "--wm-invisible-mode",
+        choices=["auto", "image-id", "recipient", "owner"],
+        default=None,
+    )
     seal.add_argument("--bundle", choices=["on", "off"], default="off")
     seal.add_argument("--no-embed", action="store_true")
     seal.add_argument("--id-prefix", default="IMG")
@@ -139,6 +144,11 @@ def build_parser() -> argparse.ArgumentParser:
     watch.add_argument("--profile", default=None)
     watch.add_argument("--wm-visible", choices=["on", "off"], default=None)
     watch.add_argument("--wm-invisible", choices=["on", "off"], default=None)
+    watch.add_argument(
+        "--wm-invisible-mode",
+        choices=["auto", "image-id", "recipient", "owner"],
+        default=None,
+    )
     watch.add_argument("--bundle", choices=["on", "off"], default="off")
     watch.add_argument("--no-embed", action="store_true")
     watch.add_argument("--id-prefix", default="IMG")
@@ -211,6 +221,11 @@ def build_parser() -> argparse.ArgumentParser:
     profile_add.add_argument("--quality", type=int, default=82)
     profile_add.add_argument("--wm-visible", choices=["on", "off"], default="on")
     profile_add.add_argument("--wm-invisible", choices=["on", "off"], default="off")
+    profile_add.add_argument(
+        "--wm-invisible-mode",
+        choices=["auto", "image-id", "recipient", "owner"],
+        default="auto",
+    )
     profile_add.add_argument("--wm-style", default="diag-low")
     profile_add.add_argument("--wm-text", default="")
     profile_add.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH))
@@ -246,6 +261,8 @@ def _seal_inputs(
         overrides.setdefault("wm_visible", {})["enabled"] = args.wm_visible == "on"
     if args.wm_invisible:
         overrides.setdefault("wm_invisible", {})["enabled"] = args.wm_invisible == "on"
+    if args.wm_invisible_mode:
+        overrides.setdefault("wm_invisible", {})["mode"] = args.wm_invisible_mode
 
     metadata = MetadataFields(
         author=args.author or cfg.author,
@@ -306,6 +323,8 @@ def _seal_inputs(
                     "readme": str(result.readme_path),
                     "bundle": str(result.zip_path) if result.zip_path else None,
                     "recipient_fingerprint": result.recipient_fingerprint,
+                    "owner_fingerprint": result.owner_fingerprint,
+                    "invisible_mode": result.invisible_mode,
                     "phash": {
                         "master": result.master_phash,
                         "web": result.web_phash,
@@ -334,6 +353,9 @@ def _seal_inputs(
                 print(f"Sealed {image} -> {result.output_dir}")
                 if result.recipient_fingerprint:
                     print(f"Recipient fingerprint: {result.recipient_fingerprint}")
+                if result.owner_fingerprint:
+                    print(f"Owner fingerprint: {result.owner_fingerprint}")
+                print(f"Invisible mode: {result.invisible_mode}")
                 print("Embed status:")
                 print(f"pHash master: {result.master_phash}")
                 print(f"pHash web: {result.web_phash}")
@@ -509,7 +531,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "style": args.wm_style,
                     "text": args.wm_text,
                 },
-                "wm_invisible": {"enabled": args.wm_invisible == "on"},
+                "wm_invisible": {
+                    "enabled": args.wm_invisible == "on",
+                    "mode": args.wm_invisible_mode,
+                },
             }
             updated = SealimgConfig.from_dict(data)
             try:
