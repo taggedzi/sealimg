@@ -87,6 +87,7 @@ sealimg-gui --config-path ~/.sealimg/config.yml --profile web --output-root ./se
 If no key exists yet, the GUI will offer to generate one and initialize config values first.
 You can also click `Setup keys` in the GUI before your first seal run.
 Drag-and-drop into the input list uses `tkinterdnd2` when available.
+The Profile control is a dropdown, and `Manage...` opens a modal to add/edit/delete profiles.
  
 ## Next Steps
 

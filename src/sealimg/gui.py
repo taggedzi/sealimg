@@ -11,7 +11,7 @@ import threading
 from pathlib import Path
 from typing import Sequence
 
-from .config import load_config
+from .config import SealimgConfig, load_config, save_config
 
 
 def has_tkinterdnd2() -> bool:
@@ -189,6 +189,88 @@ def resolve_output_root_dialog_start_dir(current_path: str, default_path: str | 
     return str(Path.cwd())
 
 
+def select_profile_name(
+    available_profiles: list[str],
+    requested: str | None = None,
+    *,
+    preferred: str = "web",
+) -> str:
+    if requested and requested in available_profiles:
+        return requested
+    if preferred in available_profiles:
+        return preferred
+    if available_profiles:
+        return available_profiles[0]
+    return preferred
+
+
+def load_profile_choices(
+    config_path: str,
+    requested: str | None = None,
+) -> tuple[list[str], str]:
+    cfg_path = Path(config_path).expanduser()
+    if not cfg_path.exists():
+        selected = select_profile_name(["web"], requested=requested)
+        return ["web"], selected
+    cfg = load_config(cfg_path)
+    names = sorted(cfg.profiles.keys())
+    selected = select_profile_name(
+        names,
+        requested=requested or cfg.default_profile,
+    )
+    return names, selected
+
+
+def upsert_profile_in_config(
+    config_path: str,
+    *,
+    profile_name: str,
+    long_edge: int,
+    quality: int,
+    wm_visible_enabled: bool,
+    wm_invisible_enabled: bool,
+    wm_invisible_mode: str,
+    wm_style: str,
+    wm_text: str,
+    make_default: bool = False,
+) -> None:
+    cfg_path = Path(config_path).expanduser()
+    cfg = load_config(cfg_path)
+    data = cfg.to_dict()
+    data["profiles"][profile_name] = {
+        "long_edge": int(long_edge),
+        "jpeg_quality": int(quality),
+        "wm_visible": {
+            "enabled": bool(wm_visible_enabled),
+            "style": str(wm_style),
+            "text": str(wm_text),
+        },
+        "wm_invisible": {
+            "enabled": bool(wm_invisible_enabled),
+            "mode": str(wm_invisible_mode),
+        },
+    }
+    if make_default:
+        data["default_profile"] = profile_name
+    save_config(cfg_path, SealimgConfig.from_dict(data))
+
+
+def delete_profile_from_config(config_path: str, profile_name: str) -> str:
+    cfg_path = Path(config_path).expanduser()
+    cfg = load_config(cfg_path)
+    data = cfg.to_dict()
+    profiles = data["profiles"]
+    if profile_name not in profiles:
+        return data["default_profile"]
+    if len(profiles) <= 1:
+        raise ValueError("cannot delete the last remaining profile")
+    del profiles[profile_name]
+    if data["default_profile"] == profile_name:
+        data["default_profile"] = select_profile_name(sorted(profiles.keys()))
+    save_config(cfg_path, SealimgConfig.from_dict(data))
+    return data["default_profile"]
+
+
 def build_gui_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="sealimg-gui",
@@ -239,7 +321,7 @@ def run_gui(
     running = {"active": False}
 
     config_var = tk.StringVar(value=config_path)
-    profile_var = tk.StringVar(value=default_profile or "")
+    profile_var = tk.StringVar(value=default_profile or "web")
     output_root_var = tk.StringVar(value=default_output_root or "")
     recipient_var = tk.StringVar(value="")
     passphrase_var = tk.StringVar(value="")
@@ -273,14 +355,14 @@ def run_gui(
         )
         if selected:
             config_var.set(str(selected))
+            _refresh_profiles(preferred="web")
 
     ttk.Button(controls, text="Browse...", command=_browse_config).grid(
         row=0, column=2, sticky="w"
     )
     ttk.Label(controls, text="Profile").grid(row=1, column=0, sticky="w")
-    ttk.Entry(controls, textvariable=profile_var, width=24).grid(
-        row=1, column=1, sticky="w", padx=6
-    )
+    profile_combo = ttk.Combobox(controls, state="readonly", textvariable=profile_var, width=24)
+    profile_combo.grid(row=1, column=1, sticky="w", padx=6)
     ttk.Label(controls, text="Output root").grid(row=2, column=0, sticky="w")
     ttk.Entry(controls, textvariable=output_root_var, width=48).grid(
         row=2, column=1, sticky="ew", padx=6
@@ -393,6 +475,211 @@ def run_gui(
     def _append(text: str) -> None:
         output.insert(tk.END, text + "\n")
         output.see(tk.END)
+
+    def _refresh_profiles(preferred: str | None = None) -> None:
+        cfg_path = config_var.get().strip()
+        try:
+            names, selected = load_profile_choices(
+                cfg_path,
+                requested=preferred or profile_var.get(),
+            )
+        except Exception as exc:
+            messagebox.showerror("Sealimg", f"Unable to load profiles: {exc}")
+            return
+        profile_combo["values"] = names
+        profile_var.set(selected)
+
+    def _open_profile_manager() -> None:
+        cfg_path = config_var.get().strip()
+        try:
+            cfg = load_config(Path(cfg_path).expanduser())
+        except Exception as exc:
+            messagebox.showerror("Sealimg", f"Unable to load config for profile manager: {exc}")
+            return
+
+        win = tk.Toplevel(root)
+        win.title("Manage Profiles")
+        win.geometry("780x420")
+        win.transient(root)
+        win.grab_set()
+
+        list_frame = ttk.Frame(win, padding=10)
+        list_frame.pack(fill="both", expand=True)
+
+        left = ttk.Frame(list_frame)
+        left.pack(side="left", fill="y")
+        right = ttk.Frame(list_frame)
+        right.pack(side="left", fill="both", expand=True, padx=(12, 0))
+
+        names = sorted(cfg.profiles.keys())
+        name_var = tk.StringVar(value=select_profile_name(names, requested=cfg.default_profile))
+        long_edge_var = tk.StringVar(value="2560")
+        quality_var = tk.StringVar(value="82")
+        wm_visible_var_local = tk.BooleanVar(value=True)
+        wm_invisible_var_local = tk.BooleanVar(value=False)
+        wm_invisible_mode_var_local = tk.StringVar(value="auto")
+        wm_style_var = tk.StringVar(value="diag-low")
+        wm_text_var = tk.StringVar(value="")
+        make_default_var = tk.BooleanVar(value=False)
+
+        lb = tk.Listbox(left, height=14, exportselection=False)
+        lb.pack(fill="y", expand=True)
+
+        def _sync_list(target: str | None = None) -> None:
+            nonlocal names
+            try:
+                current_cfg = load_config(Path(cfg_path).expanduser())
+            except Exception as exc:
+                messagebox.showerror("Sealimg", f"Unable to reload config: {exc}")
+                return
+            names = sorted(current_cfg.profiles.keys())
+            lb.delete(0, tk.END)
+            for n in names:
+                label = f"{n} (default)" if n == current_cfg.default_profile else n
+                lb.insert(tk.END, label)
+            selected_name = select_profile_name(names, requested=target or name_var.get())
+            name_var.set(selected_name)
+            if selected_name in names:
+                idx = names.index(selected_name)
+                lb.selection_clear(0, tk.END)
+                lb.selection_set(idx)
+                lb.see(idx)
+                _load_selected()
+
+        def _load_selected(_event=None) -> None:
+            selected = lb.curselection()
+            if not selected:
+                return
+            idx = selected[0]
+            if idx >= len(names):
+                return
+            n = names[idx]
+            try:
+                current_cfg = load_config(Path(cfg_path).expanduser())
+            except Exception as exc:
+                messagebox.showerror("Sealimg", f"Unable to load selected profile: {exc}")
+                return
+            p = current_cfg.profiles.get(n, {})
+            name_var.set(n)
+            long_edge_var.set(str(p.get("long_edge", 2560)))
+            quality_var.set(str(p.get("jpeg_quality", 82)))
+            wm_visible = p.get("wm_visible", {})
+            wm_invisible = p.get("wm_invisible", {})
+            wm_visible_var_local.set(bool(wm_visible.get("enabled", True)))
+            wm_invisible_var_local.set(bool(wm_invisible.get("enabled", False)))
+            wm_invisible_mode_var_local.set(str(wm_invisible.get("mode", "auto")))
+            wm_style_var.set(str(wm_visible.get("style", "diag-low")))
+            wm_text_var.set(str(wm_visible.get("text", "")))
+            make_default_var.set(current_cfg.default_profile == n)
+
+        lb.bind("<<ListboxSelect>>", _load_selected)
+
+        ttk.Label(right, text="Profile name").grid(row=0, column=0, sticky="w")
+        ttk.Entry(right, textvariable=name_var, width=28).grid(row=0, column=1, sticky="w", padx=6)
+        ttk.Checkbutton(right, text="Set as default", variable=make_default_var).grid(
+            row=0, column=2, sticky="w", padx=8
+        )
+
+        ttk.Label(right, text="Long edge").grid(row=1, column=0, sticky="w")
+        ttk.Entry(right, textvariable=long_edge_var, width=12).grid(
+            row=1, column=1, sticky="w", padx=6
+        )
+        ttk.Label(right, text="JPEG quality").grid(row=2, column=0, sticky="w")
+        ttk.Entry(right, textvariable=quality_var, width=12).grid(
+            row=2, column=1, sticky="w", padx=6
+        )
+
+        ttk.Checkbutton(right, text="Visible watermark", variable=wm_visible_var_local).grid(
+            row=3, column=0, sticky="w"
+        )
+        ttk.Checkbutton(right, text="Invisible watermark", variable=wm_invisible_var_local).grid(
+            row=3, column=1, sticky="w"
+        )
+        ttk.Label(right, text="Invisible mode").grid(row=4, column=0, sticky="w")
+        ttk.Combobox(
+            right,
+            state="readonly",
+            values=("auto", "image-id", "recipient", "owner"),
+            textvariable=wm_invisible_mode_var_local,
+            width=14,
+        ).grid(row=4, column=1, sticky="w", padx=6)
+
+        ttk.Label(right, text="Visible style").grid(row=5, column=0, sticky="w")
+        ttk.Entry(right, textvariable=wm_style_var, width=20).grid(
+            row=5, column=1, sticky="w", padx=6
+        )
+        ttk.Label(right, text="Visible text").grid(row=6, column=0, sticky="w")
+        ttk.Entry(right, textvariable=wm_text_var, width=48).grid(
+            row=6, column=1, columnspan=2, sticky="ew", padx=6
+        )
+        right.columnconfigure(2, weight=1)
+
+        btn_row = ttk.Frame(right)
+        btn_row.grid(row=7, column=0, columnspan=3, sticky="w", pady=(12, 0))
+
+        def _add_new() -> None:
+            suggested = simpledialog.askstring("New profile", "Profile name:", parent=win)
+            if not suggested:
+                return
+            name_var.set(suggested.strip())
+            long_edge_var.set("2560")
+            quality_var.set("82")
+            wm_visible_var_local.set(True)
+            wm_invisible_var_local.set(False)
+            wm_invisible_mode_var_local.set("auto")
+            wm_style_var.set("diag-low")
+            wm_text_var.set("")
+            make_default_var.set(False)
+
+        def _save_profile() -> None:
+            name = name_var.get().strip()
+            if not name:
+                messagebox.showerror("Sealimg", "Profile name is required.", parent=win)
+                return
+            try:
+                upsert_profile_in_config(
+                    cfg_path,
+                    profile_name=name,
+                    long_edge=int(long_edge_var.get().strip()),
+                    quality=int(quality_var.get().strip()),
+                    wm_visible_enabled=wm_visible_var_local.get(),
+                    wm_invisible_enabled=wm_invisible_var_local.get(),
+                    wm_invisible_mode=wm_invisible_mode_var_local.get().strip(),
+                    wm_style=wm_style_var.get().strip() or "diag-low",
+                    wm_text=wm_text_var.get(),
+                    make_default=make_default_var.get(),
+                )
+            except Exception as exc:
+                messagebox.showerror("Sealimg", f"Unable to save profile: {exc}", parent=win)
+                return
+            _sync_list(target=name)
+            _refresh_profiles(preferred=name)
+
+        def _delete_profile() -> None:
+            name = name_var.get().strip()
+            if not name:
+                return
+            if not messagebox.askyesno("Delete profile", f"Delete profile '{name}'?", parent=win):
+                return
+            try:
+                new_default = delete_profile_from_config(cfg_path, name)
+            except Exception as exc:
+                messagebox.showerror("Sealimg", f"Unable to delete profile: {exc}", parent=win)
+                return
+            _sync_list(target=new_default)
+            _refresh_profiles(preferred=new_default)
+
+        ttk.Button(btn_row, text="Add new...", command=_add_new).pack(side="left")
+        ttk.Button(btn_row, text="Save", command=_save_profile).pack(side="left", padx=6)
+        ttk.Button(btn_row, text="Delete", command=_delete_profile).pack(side="left")
+        ttk.Button(btn_row, text="Close", command=win.destroy).pack(side="left", padx=6)
+
+        _sync_list()
+
+    ttk.Button(controls, text="Manage...", command=_open_profile_manager).grid(
+        row=1, column=2, sticky="w"
+    )
+    _refresh_profiles(preferred=default_profile or "web")
 
     def _build_cli_args() -> list[str]:
         return build_seal_cli_args(
