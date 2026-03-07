@@ -1,0 +1,64 @@
+name: Epic
+description: Plan a multi-issue feature area with scope and acceptance criteria.
+title: "epic: "
+labels:
+  - epic
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What user/problem does this epic solve?
+      placeholder: Describe the current gap and why this epic matters.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Define what is in and out of scope.
+      placeholder: |
+        In scope:
+        - ...
+        Out of scope:
+        - ...
+    validations:
+      required: true
+  - type: textarea
+    id: deliverables
+    attributes:
+      label: Deliverables
+      description: List expected outputs and child issues.
+      placeholder: |
+        - [ ] Child issue 1
+        - [ ] Child issue 2
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: Conditions that must be true to close the epic.
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+    validations:
+      required: true
+  - type: input
+    id: milestone
+    attributes:
+      label: Target Milestone
+      description: Example: v0.1 MVP
+      placeholder: v0.1 MVP
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies / Blockers
+      description: Link issues, PRs, or decisions this epic depends on.
+      placeholder: |
+        - Depends on #
+        - Blocked by ADR-xxxx
+    validations:
+      required: false

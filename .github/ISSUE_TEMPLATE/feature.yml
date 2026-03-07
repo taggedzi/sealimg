@@ -1,0 +1,60 @@
+name: Feature
+description: Add a specific feature or behavior change.
+title: "feat: "
+labels:
+  - backend
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What should be implemented?
+      placeholder: Implement ...
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why is this feature needed now?
+      placeholder: This enables ...
+    validations:
+      required: true
+  - type: textarea
+    id: implementation_notes
+    attributes:
+      label: Implementation Notes
+      description: Technical notes, constraints, or design choices.
+      placeholder: |
+        - Use ...
+        - Avoid ...
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+    validations:
+      required: true
+  - type: input
+    id: adr_reference
+    attributes:
+      label: ADR Reference (if applicable)
+      description: Link ADR file if this issue enacts a decision.
+      placeholder: docs/adr/0001-example.md
+    validations:
+      required: false
+  - type: textarea
+    id: tests
+    attributes:
+      label: Testing Plan
+      description: Unit/integration/manual checks.
+      placeholder: |
+        - Unit tests:
+        - Integration tests:
+        - Manual verification:
+    validations:
+      required: true

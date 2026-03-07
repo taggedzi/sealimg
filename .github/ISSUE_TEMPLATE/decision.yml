@@ -1,0 +1,44 @@
+name: Decision record request
+description: Propose a significant technical decision and capture it as an ADR.
+title: "adr: "
+labels:
+  - docs
+body:
+  - type: textarea
+    id: decision
+    attributes:
+      label: Decision To Make
+      placeholder: State the decision in one sentence.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      placeholder: What constraints, goals, or prior decisions apply?
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: Options Considered
+      placeholder: |
+        - Option A:
+        - Option B:
+        - Option C:
+    validations:
+      required: true
+  - type: textarea
+    id: recommendation
+    attributes:
+      label: Recommended Option
+      placeholder: Recommend one option and explain why.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Consequences
+      placeholder: What changes if we choose this?
+    validations:
+      required: true
