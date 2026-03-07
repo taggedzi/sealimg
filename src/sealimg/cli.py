@@ -22,6 +22,34 @@ from .workflow import (
 )
 
 DEFAULT_CONFIG_PATH = Path("~/.sealimg/config.yml").expanduser()
+SENSITIVE_ENV_VARS = ("SEALIMG_PASSPHRASE",)
+
+
+def _sanitize_error_text(text: str, secrets: list[str] | None = None) -> str:
+    sanitized = text
+    for env_name in SENSITIVE_ENV_VARS:
+        value = os.environ.get(env_name)
+        if value:
+            sanitized = sanitized.replace(value, "<redacted>")
+    for secret in secrets or []:
+        if secret:
+            sanitized = sanitized.replace(secret, "<redacted>")
+    return sanitized
+
+
+def _print_safe_error(
+    message: str,
+    exc: Exception | None = None,
+    secrets: list[str] | None = None,
+) -> None:
+    if exc is None:
+        print(f"Error: {message}")
+        return
+    detail = _sanitize_error_text(str(exc), secrets=secrets).strip()
+    if detail:
+        print(f"Error: {message}: {detail}")
+    else:
+        print(f"Error: {message}.")
 
 
 def _default_config() -> SealimgConfig:
@@ -168,7 +196,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 key_name=args.key_name,
             )
         except CryptoError as exc:
-            print(f"Error: {exc}")
+            _print_safe_error("key generation failed", exc, secrets=[passphrase])
             return 1
         print(f"Generated {info.algorithm} keys for '{info.signer}'.")
         print(f"Private key: {info.paths.private_key}")
@@ -176,10 +204,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"Fingerprint: {info.fingerprint}")
         if args.write_config:
             config_path = Path(args.config_path).expanduser()
-            cfg = _load_or_init_config(config_path)
-            merged = cfg.to_dict()
-            merged["signing_key"] = str(info.paths.private_key)
-            save_config(config_path, SealimgConfig.from_dict(merged))
+            try:
+                cfg = _load_or_init_config(config_path)
+                merged = cfg.to_dict()
+                merged["signing_key"] = str(info.paths.private_key)
+                save_config(config_path, SealimgConfig.from_dict(merged))
+            except Exception as exc:
+                _print_safe_error("unable to update config", exc, secrets=[passphrase])
+                return 1
         return 0
 
     if args.command == "key":
@@ -187,7 +219,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             try:
                 key_bytes = Path(args.public_key).read_bytes()
             except OSError as exc:
-                print(f"Error: unable to read key file: {exc}")
+                _print_safe_error("unable to read key file", exc)
                 return 1
             fingerprint = public_key_fingerprint(key_bytes)
             show_all = not args.fingerprint and not args.pubkey
@@ -203,7 +235,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "config":
         config_path = Path(args.config_path).expanduser()
-        cfg = _load_or_init_config(config_path)
+        try:
+            cfg = _load_or_init_config(config_path)
+        except Exception as exc:
+            _print_safe_error("unable to load config", exc)
+            return 1
         if args.config_command == "get":
             print(dump_yaml_object(cfg.to_dict()), end="")
             return 0
@@ -222,13 +258,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             if args.signing_key:
                 data["signing_key"] = args.signing_key
             updated = SealimgConfig.from_dict(data)
-            save_config(config_path, updated)
+            try:
+                save_config(config_path, updated)
+            except Exception as exc:
+                _print_safe_error("unable to save config", exc)
+                return 1
             print(f"Config updated: {config_path}")
             return 0
 
     if args.command == "profile":
         config_path = Path(args.config_path).expanduser()
-        cfg = _load_or_init_config(config_path)
+        try:
+            cfg = _load_or_init_config(config_path)
+        except Exception as exc:
+            _print_safe_error("unable to load config", exc)
+            return 1
         if args.profile_command == "list":
             for name in sorted(cfg.profiles):
                 print(name)
@@ -252,13 +296,21 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "wm_invisible": {"enabled": args.wm_invisible == "on"},
             }
             updated = SealimgConfig.from_dict(data)
-            save_config(config_path, updated)
+            try:
+                save_config(config_path, updated)
+            except Exception as exc:
+                _print_safe_error("unable to save profile", exc)
+                return 1
             print(f"Profile '{args.name}' saved.")
             return 0
 
     if args.command == "seal":
         config_path = Path(args.config_path).expanduser()
-        cfg = _load_or_init_config(config_path)
+        try:
+            cfg = _load_or_init_config(config_path)
+        except Exception as exc:
+            _print_safe_error("unable to load config", exc)
+            return 1
         passphrase = args.passphrase or os.environ.get("SEALIMG_PASSPHRASE")
         if not passphrase:
             print("Error: passphrase required (--passphrase or SEALIMG_PASSPHRASE).")
@@ -269,7 +321,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 signing_key_override=args.signing_key,
             )
         except FileNotFoundError as exc:
-            print(f"Error: {exc}")
+            _print_safe_error("unable to resolve signing keys", exc)
             return 1
 
         output_root = Path(args.output_root or cfg.output_root).expanduser()
@@ -341,11 +393,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                     )
             except ImagePipelineError as exc:
                 if not args.json:
-                    print(f"Error: unsupported or invalid image '{image}': {exc}")
+                    _print_safe_error(f"unsupported or invalid image '{image}'", exc)
                 exit_code = 3
             except Exception as exc:
                 if not args.json:
-                    print(f"Error sealing '{image}': {exc}")
+                    _print_safe_error(f"sealing failed for '{image}'", exc, secrets=[passphrase])
                 exit_code = 1
         if args.json:
             print(
@@ -365,7 +417,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         pubkey = Path(args.pubkey).expanduser() if args.pubkey else None
         if pubkey is None:
             config_path = Path(args.config_path).expanduser()
-            cfg = _load_or_init_config(config_path)
+            try:
+                cfg = _load_or_init_config(config_path)
+            except Exception as exc:
+                _print_safe_error("unable to load config", exc)
+                return 1
             key = Path(cfg.signing_key).expanduser()
             pubkey = key.with_suffix(".pub")
         if not pubkey.exists():
@@ -374,10 +430,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         try:
             result = verify_target(Path(args.target), pubkey)
         except FileNotFoundError as exc:
-            print(f"Error: {exc}")
+            _print_safe_error("verify target not found", exc)
             return 1
         except Exception as exc:
-            print(f"Error: {exc}")
+            _print_safe_error("verification failed", exc)
             return 1
 
         exit_code = 0
@@ -412,10 +468,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         try:
             result = inspect_image(Path(args.image))
         except ImagePipelineError as exc:
-            print(f"Error: {exc}")
+            _print_safe_error("unsupported or invalid image", exc)
             return 3
         except Exception as exc:
-            print(f"Error: {exc}")
+            _print_safe_error("inspect failed", exc)
             return 1
         if args.json:
             print(

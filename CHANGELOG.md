@@ -5,15 +5,21 @@ The format is based on **Keep a Changelog** and this project adheres to **Semant
 
 ## [Unreleased]
 ### Added
-- Project scaffolding and documentation stubs
-- Initial design docs and manifest schema (v1)
-- Roadmap and contribution guidelines
+- Python package scaffold, CLI entrypoint, and Windows/Linux CI workflow.
+- Config and manifest domain models with validation and profile merge logic.
+- Native crypto key generation/sign/verify (Ed25519 + RSA) with optional GPG interop helpers.
+- PNG/JPEG pipeline for master/web outputs with XMP metadata embedding.
+- Artifact pipeline for `manifest.json`, `manifest.sig`, `sha256.txt`, `README.txt`, and provenance ZIP.
+- Sidecar-first C2PA embed flow with best-effort JPEG/PNG embedding and inspect detection.
+- CLI commands for `seal`, `verify`, `inspect`, `keygen`, `key show`, `config`, and `profile`.
+- JSON output mode for `seal`, `verify`, and `inspect`.
+- Test suite for workflow, mutation/tamper verification, C2PA embedding, and artifacts.
 
 ### Changed
-- N/A
+- `docs/cli.md`, `docs/quickstart.md`, `docs/file-formats.md`, and `docs/cryptography.md` synchronized to current implementation.
 
 ### Fixed
-- N/A
+- Hardened CLI error output by redacting passphrase values from surfaced exception text.
 
 ---
 

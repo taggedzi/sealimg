@@ -84,7 +84,7 @@ This TODO is derived from `README.md`, `docs/`, `design/`, and `specs/` and is i
 - [x] Implement documented exit codes: `0`, `1`, `2`, `3`.
 
 ## 7) Reliability, Safety, and UX
-- [ ] Ensure private key/passphrase never printed or logged.
+- [x] Ensure private key/passphrase never printed or logged.
 - [x] Add friendly, actionable errors for unsupported formats and missing keys.
 - [x] Add deterministic output for CI use (machine-readable mode).
 - [ ] Add watch/batch behavior backlog item for v0.3.
@@ -114,11 +114,11 @@ This TODO is derived from `README.md`, `docs/`, `design/`, and `specs/` and is i
   - [ ] golden hashes/signatures
 
 ## 9) Documentation Completion Gates
-- [ ] Replace install placeholder in `docs/quickstart.md` with real instructions.
-- [ ] Keep `docs/cli.md` synchronized with implemented flags and examples.
-- [ ] Add compatibility matrix for embed support by format/OS/library.
-- [ ] Publish public key sharing and trust guidance in docs.
-- [ ] Update `CHANGELOG.md` for first real release.
+- [x] Replace install placeholder in `docs/quickstart.md` with real instructions.
+- [x] Keep `docs/cli.md` synchronized with implemented flags and examples.
+- [x] Add compatibility matrix for embed support by format/OS/library.
+- [x] Publish public key sharing and trust guidance in docs.
+- [x] Update `CHANGELOG.md` for first real release.
 
 ## 10) Milestone Mapping
 - [ ] v0.1: CLI + PNG/JPEG + metadata + signed manifest + verify + config/profiles.

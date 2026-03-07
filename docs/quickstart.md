@@ -1,12 +1,21 @@
 # Quickstart
 
-## 1) Install (placeholder)
-> Installation steps will be added once the first CLI is published.
-- Windows/macOS/Linux binaries or `pip`/`cargo` install TBD.
+## 1) Install (from source)
+From repo root:
+```bash
+python -m venv .venv
+source .venv/bin/activate   # Linux/WSL
+# .\.venv\Scripts\Activate.ps1   # Windows PowerShell
+pip install -U pip
+pip install -e ".[dev]"
+```
 
 ## 2) Create a keypair (one-time)
 ```bash
-sealimg keygen --ed25519 --name "Your Name"
+sealimg keygen --ed25519 --name "Your Name" \
+  --key-name "yourname" \
+  --output-dir "~/.sealimg/keys" \
+  --passphrase "choose-a-strong-passphrase"
 ````
 
 * This stores an encrypted private key under `~/.sealimg/keys/`.
@@ -19,13 +28,14 @@ sealimg config set --author "Your Name" \
   --site "https://yourdomain.example" \
   --license "CC BY-NC 4.0" \
   --output-root "./sealed" \
-  --default-profile "web"
+  --default-profile "web" \
+  --signing-key "~/.sealimg/keys/yourname_ed25519.key"
 ```
 
 ## 4) Seal one image
 
 ```bash
-sealimg seal path/to/image.jpg
+sealimg seal path/to/image.jpg --bundle on --passphrase "choose-a-strong-passphrase"
 ```
 
 Outputs (example):
@@ -43,7 +53,8 @@ sealed/IMG-2025-10-15-0001/
 ## 5) Verify
 
 ```bash
-sealimg verify sealed/IMG-2025-10-15-0001/web.jpg
+sealimg verify sealed/IMG-2025-10-15-0001/manifest.json \
+  --pubkey ~/.sealimg/keys/yourname_ed25519.pub
 ```
 
 Shows:
@@ -56,7 +67,8 @@ Shows:
 ## 6) Batch seal a folder
 
 ```bash
-sealimg seal ./my-portfolio --recursive --profile web
+sealimg seal ./my-portfolio --recursive --profile web \
+  --passphrase "choose-a-strong-passphrase"
 ```
 
 ## Next Steps
