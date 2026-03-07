@@ -13,6 +13,8 @@ Architecture Decision Records (ADRs) capture decisions that should remain stable
 - [0003 - Master Output Policy: Pixel-Preserving with Metadata Allowed](./0003-master-pixel-preserving-metadata-allowed.md) (`Accepted`)
 - [0004 - v0.1 Platform Scope: Windows and Linux](./0004-v0.1-platform-scope-windows-linux.md) (`Accepted`)
 - [0005 - Work Management Through GitHub Issues](./0005-work-management-github-issues.md) (`Accepted`)
+- [0006 - Signature Identity: Hybrid Display Name + Key-Bound ID](./0006-signature-identity-hybrid.md) (`Accepted`)
+- [0007 - Metadata/C2PA Strategy: Staged Hybrid Implementation](./0007-metadata-c2pa-staged-hybrid.md) (`Accepted`)
 
 ## ADR Template
 Use this structure for new ADRs:

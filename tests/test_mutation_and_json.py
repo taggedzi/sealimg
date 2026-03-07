@@ -125,6 +125,7 @@ def test_json_outputs_for_seal_verify_inspect(tmp_path: Path, capsys) -> None:
     assert rc == 0
     verify_json = json.loads(capsys.readouterr().out)
     assert verify_json["signature_valid"] is True
+    assert verify_json["key_id_match"] is True
     assert verify_json["hash_valid"] is True
 
     rc = main(["inspect", str(sealed_dir / "web.jpg"), "--json"])
@@ -145,3 +146,38 @@ def test_metadata_stripped_copy_does_not_break_sidecar_verification(tmp_path: Pa
     # Sidecar verification still succeeds for the original sealed package.
     rc = main(["verify", str(sealed_dir / "manifest.json"), "--pubkey", str(public_key)])
     assert rc == 0
+
+
+def test_verify_fails_when_pubkey_does_not_match_manifest_key_id(tmp_path: Path, capsys) -> None:
+    sealed_dir, _, _ = _setup_sealed_artifact(tmp_path)
+    capsys.readouterr()
+    other_keys = tmp_path / "other-keys"
+    rc = main(
+        [
+            "keygen",
+            "--ed25519",
+            "--name",
+            "Other",
+            "--key-name",
+            "other",
+            "--output-dir",
+            str(other_keys),
+            "--passphrase",
+            "test-passphrase",
+        ]
+    )
+    assert rc == 0
+    capsys.readouterr()
+    other_pub = other_keys / "other_ed25519.pub"
+    rc = main(
+        [
+            "verify",
+            str(sealed_dir / "manifest.json"),
+            "--pubkey",
+            str(other_pub),
+            "--json",
+        ]
+    )
+    assert rc == 2
+    out = json.loads(capsys.readouterr().out)
+    assert out["key_id_match"] is False

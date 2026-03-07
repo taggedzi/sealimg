@@ -53,6 +53,12 @@ Verify a sealed image or manifest.
 sealimg verify <image-or-manifest> [--pubkey PATH] [--config-path PATH] [--json]
 ```
 
+Verification checks:
+- Signature validity
+- Signer key ID match (public key fingerprint against manifest key ID)
+- File hash consistency (`master`, `web`)
+- Embedded marker detection status
+
 ### `sealimg inspect`
 Prints metadata and embedded structures in plain English.
 ```

@@ -447,6 +447,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "exit_code": exit_code,
                         "manifest": str(result.manifest_path),
                         "signature_valid": result.signature_valid,
+                        "key_id_match": result.key_id_match,
                         "hash_valid": result.hash_valid,
                         "embed_status": result.embed_status.status,
                         "embed_message": result.embed_status.message,
@@ -457,6 +458,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return exit_code
 
         print(f"Manifest: {result.manifest_path}")
+        print(f"Key ID: {'match' if result.key_id_match else 'mismatch'}")
         print(f"Signature: {'valid' if result.signature_valid else 'invalid'}")
         print(f"Hashes: {'valid' if result.hash_valid else 'invalid'}")
         print(f"Embed markers: {result.embed_status.status}")

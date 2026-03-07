@@ -153,9 +153,29 @@ def _validate_timestamps(timestamps: dict[str, Any]) -> None:
 
 
 def _validate_signature(signature: dict[str, Any]) -> None:
-    for key in ("algo", "signer", "pubkey_fingerprint", "signature_file"):
+    for key in ("algo", "signature_file"):
         if key not in signature or not isinstance(signature[key], str):
             raise ManifestError(f"Manifest signature.{key} must be a string")
+
+    if "signer_display" in signature and not isinstance(signature["signer_display"], str):
+        raise ManifestError("Manifest signature.signer_display must be a string")
+    if "signer" in signature and not isinstance(signature["signer"], str):
+        raise ManifestError("Manifest signature.signer must be a string")
+    if "signer_display" not in signature and "signer" not in signature:
+        raise ManifestError(
+            "Manifest signature must include signer_display "
+            "(or signer for compatibility)"
+        )
+
+    if "signer_key_id" in signature and not isinstance(signature["signer_key_id"], str):
+        raise ManifestError("Manifest signature.signer_key_id must be a string")
+    if "pubkey_fingerprint" in signature and not isinstance(signature["pubkey_fingerprint"], str):
+        raise ManifestError("Manifest signature.pubkey_fingerprint must be a string")
+    if "signer_key_id" not in signature and "pubkey_fingerprint" not in signature:
+        raise ManifestError(
+            "Manifest signature must include signer_key_id "
+            "(or pubkey_fingerprint for compatibility)"
+        )
 
 
 def _validate_iso8601(value: str, field_name: str) -> None:

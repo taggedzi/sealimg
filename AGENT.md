@@ -25,6 +25,8 @@ This file is the operational handoff for future contributors and coding agents w
 3. Master file policy: pixel-preserving master; metadata/provenance updates are allowed; byte-identical output is not required.
 4. v0.1 target platforms: Windows and Linux.
 5. Project execution management: GitHub Issues should be used to track work.
+6. Signature identity policy: hybrid (`signer_display` for UX + authoritative `signer_key_id` for verification).
+7. Metadata/C2PA strategy: staged hybrid (v0.1 best-effort local embedding + sidecar-first, strict backend path later).
 
 See `docs/adr/` for full decision records.
 

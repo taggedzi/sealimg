@@ -130,8 +130,8 @@ This TODO is derived from `README.md`, `docs/`, `design/`, and `specs/` and is i
 ## Decisions Needed Before Implementation Starts
 - [x] Select implementation stack (language/runtime and packaging target): Python.
 - [x] Select crypto backend/library strategy: native crypto libraries for core features, with optional GPG key import/use when users provide keys.
-- [ ] Select metadata/C2PA libraries for PNG/JPEG embedding.
+- [x] Select metadata/C2PA libraries for PNG/JPEG embedding: staged hybrid strategy (v0.1 best-effort local adapters, extensible strict backend later).
 - [x] Define `master` policy: pixel-preserving master where metadata/provenance changes are allowed; not guaranteed byte-identical to original file.
-- [ ] Decide signing identity format (free text name vs key-bound UID policy).
+- [x] Decide signing identity format: hybrid (`signer_display` + authoritative `signer_key_id`).
 - [x] Decide minimum supported OS versions for v0.1: Windows and Linux.
 - [x] Issue tracking approach: use GitHub Issues to map TODO execution if repository issue tracking is available.

@@ -14,6 +14,7 @@ def _canonicalize_manifest(path: Path) -> dict:
     payload["files"]["master"]["sha256"] = "<sha256>"
     payload["files"]["web"]["sha256"] = "<sha256>"
     payload["signature"]["pubkey_fingerprint"] = "<fingerprint>"
+    payload["signature"]["signer_key_id"] = "<fingerprint>"
     return payload
 
 

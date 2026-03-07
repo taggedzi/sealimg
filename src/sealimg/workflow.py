@@ -49,6 +49,7 @@ class SealResult:
 class VerifyResult:
     manifest_path: Path
     signature_valid: bool
+    key_id_match: bool
     hash_valid: bool
     embed_status: EmbedStatus
 
@@ -132,6 +133,7 @@ def seal_image(
     )
     embed_status = attempt_embed_claim(web_path, manifest_path, enabled=embed_enabled)
 
+    signer_key_id = public_key_fingerprint(public_key_path.read_bytes())
     manifest_payload = {
         "schema": MANIFEST_SCHEMA_V1,
         "image_id": image_id,
@@ -162,7 +164,9 @@ def seal_image(
         "signature": {
             "algo": "rsa" if "rsa" in signing_key_path.name.lower() else "ed25519",
             "signer": signer_name,
-            "pubkey_fingerprint": public_key_fingerprint(public_key_path.read_bytes()),
+            "signer_display": signer_name,
+            "signer_key_id": signer_key_id,
+            "pubkey_fingerprint": signer_key_id,
             "signature_file": signature_path.name,
         },
     }
@@ -220,7 +224,12 @@ def verify_target(target: Path, public_key_path: Path) -> VerifyResult:
     manifest = ManifestV1.from_dict(payload)
     sig_path = manifest_path.with_name(manifest.signature["signature_file"])
 
-    signature_valid = verify_file(manifest_path, sig_path, public_key_path)
+    expected_key_id = manifest.signature.get("signer_key_id") or manifest.signature.get(
+        "pubkey_fingerprint"
+    )
+    actual_key_id = public_key_fingerprint(public_key_path.read_bytes())
+    key_id_match = expected_key_id == actual_key_id
+    signature_valid = key_id_match and verify_file(manifest_path, sig_path, public_key_path)
     master = manifest_path.parent / manifest.files["master"]["path"]
     web = manifest_path.parent / manifest.files["web"]["path"]
     hash_valid = (
@@ -233,6 +242,7 @@ def verify_target(target: Path, public_key_path: Path) -> VerifyResult:
     return VerifyResult(
         manifest_path=manifest_path,
         signature_valid=signature_valid,
+        key_id_match=key_id_match,
         hash_valid=hash_valid,
         embed_status=embed_status,
     )

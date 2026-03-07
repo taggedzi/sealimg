@@ -20,6 +20,8 @@ Each sealed image has a human-readable `manifest.json` that is also signed (`man
   },
   "signature": {
     "algo": "ed25519|rsa",
+    "signer_display": "Your Name",
+    "signer_key_id": "<short>",
     "signer": "Your Name",
     "pubkey_fingerprint": "<short>",
     "signature_file": "manifest.sig"

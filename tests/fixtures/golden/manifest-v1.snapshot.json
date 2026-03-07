@@ -16,8 +16,10 @@
   "signature": {
     "algo": "ed25519",
     "pubkey_fingerprint": "<fingerprint>",
-    "signature_file": "manifest.sig",
-    "signer": "Tester"
+    "signer": "Tester",
+    "signer_display": "Tester",
+    "signer_key_id": "<fingerprint>",
+    "signature_file": "manifest.sig"
   },
   "timestamps": {
     "local_created": "<timestamp>",
