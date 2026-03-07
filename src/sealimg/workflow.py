@@ -81,6 +81,7 @@ class InspectResult:
     embed_status: EmbedStatus
     artifact_embed_statuses: dict[str, EmbedStatus]
     sidecar_available: bool
+    invisible: dict[str, object] | None = None
 
 
 def discover_input_images(paths: list[Path], recursive: bool) -> list[Path]:
@@ -294,7 +295,12 @@ def verify_target(target: Path, public_key_path: Path) -> VerifyResult:
     )
 
 
-def inspect_image(path: Path) -> InspectResult:
+def inspect_image(
+    path: Path,
+    *,
+    check_invisible: bool = False,
+    expected_invisible_payload: str | None = None,
+) -> InspectResult:
     fmt = detect_format(path)
     with Image.open(path) as image:
         width, height = image.size
@@ -305,6 +311,13 @@ def inspect_image(path: Path) -> InspectResult:
         artifact_embed_statuses = _inspect_embed_statuses_from_manifest(sidecar_path)
     else:
         artifact_embed_statuses = {"input": inspect_embed_status(path)}
+    invisible_info = None
+    if check_invisible:
+        invisible_info = _inspect_invisible_claim(
+            path,
+            sidecar_path=sidecar_path if sidecar_available else None,
+            expected_payload=expected_invisible_payload,
+        )
     return InspectResult(
         path=path,
         format=fmt,
@@ -315,6 +328,7 @@ def inspect_image(path: Path) -> InspectResult:
         embed_status=inspect_embed_status(path),
         artifact_embed_statuses=artifact_embed_statuses,
         sidecar_available=sidecar_available,
+        invisible=invisible_info,
     )
 
 
@@ -350,6 +364,61 @@ def _inspect_embed_statuses_from_manifest(manifest_path: Path) -> dict[str, Embe
     return {
         "master": _inspect_artifact_embed_status(master),
         "web": _inspect_artifact_embed_status(web),
+    }
+
+
+def _inspect_invisible_claim(
+    path: Path,
+    *,
+    sidecar_path: Path | None,
+    expected_payload: str | None,
+) -> dict[str, object]:
+    if sidecar_path is None or not sidecar_path.exists():
+        return {"status": "unavailable", "message": "manifest.json not found"}
+    try:
+        payload = json.loads(sidecar_path.read_text(encoding="utf-8"))
+        manifest = ManifestV1.from_dict(payload)
+    except Exception as exc:
+        return {"status": "unavailable", "message": f"manifest parse failed: {exc}"}
+
+    invisible = payload.get("watermarks", {}).get("invisible", {})
+    applied = bool(invisible.get("applied", False))
+    manifest_payload = invisible.get("payload")
+    recipient_fingerprint = invisible.get("recipient_fingerprint")
+    payload_match = expected_payload is None or str(manifest_payload) == expected_payload
+
+    artifact_key = None
+    artifact_hash_match = None
+    master_name = manifest.files["master"]["path"]
+    web_name = manifest.files["web"]["path"]
+    if path.name == master_name:
+        artifact_key = "master"
+        artifact_hash_match = sha256_file(path) == manifest.files["master"]["sha256"]
+    elif path.name == web_name:
+        artifact_key = "web"
+        artifact_hash_match = sha256_file(path) == manifest.files["web"]["sha256"]
+
+    if not applied:
+        status = "not_applied"
+    elif manifest_payload in (None, ""):
+        status = "missing_payload"
+    elif not payload_match:
+        status = "payload_mismatch"
+    elif artifact_hash_match is False:
+        status = "artifact_hash_mismatch"
+    else:
+        status = "verified_manifest_claim"
+
+    return {
+        "status": status,
+        "applied": applied,
+        "payload": manifest_payload,
+        "recipient_fingerprint": recipient_fingerprint,
+        "expected_payload": expected_payload,
+        "payload_match": payload_match,
+        "artifact": artifact_key,
+        "artifact_hash_match": artifact_hash_match,
+        "manifest": str(sidecar_path),
     }
 
 

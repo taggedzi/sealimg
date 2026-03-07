@@ -168,6 +168,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     inspect = subparsers.add_parser("inspect", help="Inspect image metadata and embed status")
     inspect.add_argument("image")
+    inspect.add_argument(
+        "--check-invisible",
+        action="store_true",
+        help="Validate invisible watermark claim using sidecar manifest",
+    )
+    inspect.add_argument(
+        "--invisible-payload",
+        default=None,
+        help="Expected invisible payload to compare against manifest value",
+    )
     inspect.add_argument("--json", action="store_true", help="Emit machine-readable JSON output")
 
     gui = subparsers.add_parser("gui", help="Launch the local GUI")
@@ -230,7 +240,7 @@ def _seal_inputs(
     selected_profile = cfg.profiles.get(profile_name)
     if selected_profile is None:
         _print_safe_error(f"profile '{profile_name}' not found")
-        return 1, []
+        return 1, [], []
     overrides: dict[str, object] = {}
     if args.wm_visible:
         overrides.setdefault("wm_visible", {})["enabled"] = args.wm_visible == "on"
@@ -709,7 +719,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command == "inspect":
         try:
-            result = inspect_image(Path(args.image))
+            result = inspect_image(
+                Path(args.image),
+                check_invisible=args.check_invisible,
+                expected_invisible_payload=args.invisible_payload,
+            )
         except ImagePipelineError as exc:
             _print_safe_error("unsupported or invalid image", exc)
             return 3
@@ -737,6 +751,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                             for key, status in sorted(result.artifact_embed_statuses.items())
                         },
                         "sidecar": {"available": result.sidecar_available},
+                        "invisible": result.invisible,
                     },
                     sort_keys=True,
                 )
@@ -754,6 +769,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                 status = result.artifact_embed_statuses[key]
                 print(f"  {key}: {status.status} ({status.message})")
         print(f"Sidecar: {'available' if result.sidecar_available else 'missing'}")
+        if result.invisible is not None:
+            print("Invisible watermark claim:")
+            print(f"  status: {result.invisible.get('status')}")
+            print(f"  applied: {result.invisible.get('applied')}")
+            print(f"  payload: {result.invisible.get('payload')}")
+            if result.invisible.get("recipient_fingerprint"):
+                print(f"  recipient_fingerprint: {result.invisible.get('recipient_fingerprint')}")
+            if result.invisible.get("artifact") is not None:
+                print(f"  artifact: {result.invisible.get('artifact')}")
+                print(f"  artifact_hash_match: {result.invisible.get('artifact_hash_match')}")
         return 0
 
     print(f"Command '{args.command}' is not implemented.")
