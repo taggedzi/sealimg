@@ -111,6 +111,23 @@ def test_parse_dropped_paths_handles_empty_input() -> None:
     assert gui.parse_dropped_paths("   ") == []
 
 
+def test_resolve_config_dialog_start_dir_prefers_current_parent(tmp_path: Path) -> None:
+    cfg = tmp_path / "nested" / "config.yml"
+    cfg.parent.mkdir(parents=True, exist_ok=True)
+    out = gui.resolve_config_dialog_start_dir(str(cfg), "~/.sealimg/config.yml")
+    assert out == str(cfg.parent)
+
+
+def test_resolve_config_dialog_start_dir_falls_back_to_default_parent(tmp_path: Path) -> None:
+    default_cfg = tmp_path / ".sealimg" / "config.yml"
+    default_cfg.parent.mkdir(parents=True, exist_ok=True)
+    out = gui.resolve_config_dialog_start_dir(
+        str(tmp_path / "missing" / "path" / "config.yml"),
+        str(default_cfg),
+    )
+    assert out == str(default_cfg.parent)
+
+
 def test_detect_bootstrap_needs_missing_config(tmp_path: Path) -> None:
     has_keys, invalid = gui.detect_bootstrap_needs(str(tmp_path / "missing.yml"))
     assert has_keys is False
