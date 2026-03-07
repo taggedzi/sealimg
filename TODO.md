@@ -14,11 +14,11 @@ This TODO is derived from `README.md`, `docs/`, `design/`, and `specs/` and is i
 - [ ] Add fixture directories for sample images and golden manifests/signatures.
 
 ## 1) Core Domain Models
-- [ ] Implement `config.yml` model from `docs/config.md`.
-- [ ] Implement manifest v1 model from `docs/manifest.md`.
-- [ ] Add strict manifest schema validation and version field handling.
-- [ ] Implement deterministic image ID generator (`YYYYMMDD-####` or configured prefix).
-- [ ] Implement profile resolution (config defaults < profile < CLI overrides).
+- [x] Implement `config.yml` model from `docs/config.md`.
+- [x] Implement manifest v1 model from `docs/manifest.md`.
+- [x] Add strict manifest schema validation and version field handling.
+- [x] Implement deterministic image ID generator (`YYYYMMDD-####` or configured prefix).
+- [x] Implement profile resolution (config defaults < profile < CLI overrides).
 
 ## 2) Key Management & Signing
 - [ ] Implement `sealimg keygen`:
