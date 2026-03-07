@@ -812,7 +812,9 @@ def run_gui(
         ttk.Checkbutton(invisible_group, text="Enabled", variable=wm_invisible_var_local).grid(
             row=0, column=0, columnspan=2, sticky="w", padx=8, pady=(8, 4)
         )
-        ttk.Label(invisible_group, text="Mode").grid(row=1, column=0, sticky="w", padx=8, pady=(2, 8))
+        ttk.Label(invisible_group, text="Mode").grid(
+            row=1, column=0, sticky="w", padx=8, pady=(2, 8)
+        )
         ttk.Combobox(
             invisible_group,
             state="readonly",
