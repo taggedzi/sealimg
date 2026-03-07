@@ -153,6 +153,66 @@ def test_json_outputs_for_seal_verify_inspect(tmp_path: Path, capsys) -> None:
     assert inspect_json["sidecar"]["available"] is True
 
 
+def test_inspect_invisible_claim_validation(tmp_path: Path, capsys) -> None:
+    _, config_path, _ = _setup_sealed_artifact(tmp_path)
+    capsys.readouterr()
+    image_path = tmp_path / "inv.png"
+    Image.new("RGB", (700, 460), color=(15, 40, 70)).save(image_path, format="PNG")
+
+    rc = main(
+        [
+            "seal",
+            str(image_path),
+            "--config-path",
+            str(config_path),
+            "--passphrase",
+            "test-passphrase",
+            "--wm-invisible",
+            "on",
+            "--recipient-id",
+            "client-42",
+            "--json",
+        ]
+    )
+    assert rc == 0
+    seal_json = json.loads(capsys.readouterr().out)
+    web_path = Path(seal_json["results"][0]["web"])
+    payload = seal_json["results"][0]["recipient_fingerprint"]
+    assert payload
+
+    rc = main(
+        [
+            "inspect",
+            str(web_path),
+            "--check-invisible",
+            "--invisible-payload",
+            payload,
+            "--json",
+        ]
+    )
+    assert rc == 0
+    inspect_json = json.loads(capsys.readouterr().out)
+    assert inspect_json["invisible"]["status"] == "verified_manifest_claim"
+    assert inspect_json["invisible"]["payload_match"] is True
+    assert inspect_json["invisible"]["artifact"] == "web"
+    assert inspect_json["invisible"]["artifact_hash_match"] is True
+
+    rc = main(
+        [
+            "inspect",
+            str(web_path),
+            "--check-invisible",
+            "--invisible-payload",
+            "wrong-payload",
+            "--json",
+        ]
+    )
+    assert rc == 0
+    mismatch_json = json.loads(capsys.readouterr().out)
+    assert mismatch_json["invisible"]["status"] == "payload_mismatch"
+    assert mismatch_json["invisible"]["payload_match"] is False
+
+
 def test_seal_json_includes_per_image_errors(tmp_path: Path, capsys) -> None:
     _, config_path, _ = _setup_sealed_artifact(tmp_path)
     capsys.readouterr()

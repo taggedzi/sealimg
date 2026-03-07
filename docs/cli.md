@@ -82,7 +82,7 @@ Verification checks:
 ### `sealimg inspect`
 Prints metadata and embedded structures in plain English.
 ```
-sealimg inspect <image> [--json]
+sealimg inspect <image> [--check-invisible] [--invisible-payload VALUE] [--json]
 ```
 
 ### `sealimg gui`
