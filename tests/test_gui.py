@@ -83,6 +83,20 @@ def test_extract_last_json_object_returns_payload_only_for_json_objects() -> Non
     assert gui.extract_last_json_object("") is None
 
 
+def test_parse_dropped_paths_handles_braced_and_plain_items() -> None:
+    data = "{C:/Users/me/Pictures/with space.jpg} C:/tmp/plain.png {C:/tmp/dir one}"
+    assert gui.parse_dropped_paths(data) == [
+        "C:/Users/me/Pictures/with space.jpg",
+        "C:/tmp/plain.png",
+        "C:/tmp/dir one",
+    ]
+
+
+def test_parse_dropped_paths_handles_empty_input() -> None:
+    assert gui.parse_dropped_paths("") == []
+    assert gui.parse_dropped_paths("   ") == []
+
+
 def test_detect_bootstrap_needs_missing_config(tmp_path: Path) -> None:
     has_keys, invalid = gui.detect_bootstrap_needs(str(tmp_path / "missing.yml"))
     assert has_keys is False

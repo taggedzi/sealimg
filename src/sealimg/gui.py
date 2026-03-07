@@ -115,6 +115,43 @@ def extract_last_json_object(text: str) -> dict[str, object] | None:
     return None
 
 
+def parse_dropped_paths(data: str) -> list[str]:
+    text = data.strip()
+    if not text:
+        return []
+    items: list[str] = []
+    token: list[str] = []
+    in_braces = False
+    for ch in text:
+        if ch == "{":
+            if in_braces:
+                token.append(ch)
+            else:
+                in_braces = True
+            continue
+        if ch == "}":
+            if in_braces:
+                in_braces = False
+                value = "".join(token).strip()
+                if value:
+                    items.append(value)
+                token = []
+            else:
+                token.append(ch)
+            continue
+        if ch.isspace() and not in_braces:
+            value = "".join(token).strip()
+            if value:
+                items.append(value)
+            token = []
+            continue
+        token.append(ch)
+    value = "".join(token).strip()
+    if value:
+        items.append(value)
+    return items
+
+
 def build_gui_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="sealimg-gui",
@@ -213,6 +250,10 @@ def run_gui(
 
     paths_frame = ttk.LabelFrame(frame, text="Input files or folders")
     paths_frame.pack(fill="both", expand=True, pady=(6, 6))
+    dnd_status_var = tk.StringVar(
+        value="Drag and drop files/folders here when supported, or use Add files/Add folder."
+    )
+    ttk.Label(paths_frame, textvariable=dnd_status_var).pack(anchor="w", padx=8, pady=(8, 0))
     listbox = tk.Listbox(paths_frame, height=10)
     listbox.pack(fill="both", expand=True, padx=8, pady=8)
 
@@ -221,24 +262,29 @@ def run_gui(
         for item in paths:
             listbox.insert(tk.END, item)
 
+    def _add_path_items(items: list[str]) -> None:
+        changed = False
+        for item in items:
+            text = str(item).strip()
+            if not text:
+                continue
+            if text not in paths:
+                paths.append(text)
+                changed = True
+        if changed:
+            _sync_paths()
+
     def _add_files() -> None:
         selected = filedialog.askopenfilenames(title="Select image files")
         if not selected:
             return
-        for item in selected:
-            text = str(item)
-            if text not in paths:
-                paths.append(text)
-        _sync_paths()
+        _add_path_items([str(item) for item in selected])
 
     def _add_folder() -> None:
         selected = filedialog.askdirectory(title="Select folder")
         if not selected:
             return
-        text = str(selected)
-        if text not in paths:
-            paths.append(text)
-        _sync_paths()
+        _add_path_items([str(selected)])
 
     def _remove_selected() -> None:
         selected = sorted(listbox.curselection(), reverse=True)
@@ -276,6 +322,21 @@ def run_gui(
             config_path=config_var.get(),
             passphrase=passphrase_var.get(),
         )
+
+    def _enable_drag_drop() -> bool:
+        try:
+            root.tk.call("package", "require", "tkdnd")
+            root.tk.call("tkdnd::drop_target", "register", str(listbox), "DND_Files")
+            listbox.bind("<<Drop:DND_Files>>", _on_drop)
+        except Exception:
+            return False
+        return True
+
+    def _on_drop(event) -> None:
+        dropped = parse_dropped_paths(getattr(event, "data", ""))
+        _add_path_items(dropped)
+        if dropped:
+            _append(f"Added {len(dropped)} dropped item(s).")
 
     def _ensure_setup() -> bool:
         cfg_path = config_var.get().strip()
@@ -385,6 +446,13 @@ def run_gui(
     setup_btn.pack(side="right", padx=(0, 6))
     run_btn = ttk.Button(btns, text="Seal now", command=_run_seal)
     run_btn.pack(side="right")
+
+    if _enable_drag_drop():
+        dnd_status_var.set("Drag and drop is enabled on this system.")
+    else:
+        dnd_status_var.set(
+            "Drag and drop is unavailable in this Tk install. Use Add files/Add folder."
+        )
 
     root.mainloop()
     return 0
