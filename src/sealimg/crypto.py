@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from pathlib import Path
-import hashlib
 
 
 class CryptoError(RuntimeError):
@@ -150,7 +150,12 @@ def verify_bytes(payload: bytes, signature: bytes, public_key_path: Path) -> boo
     raise CryptoError("Unsupported public key type")
 
 
-def sign_file(input_path: Path, signature_path: Path, private_key_path: Path, passphrase: str) -> None:
+def sign_file(
+    input_path: Path,
+    signature_path: Path,
+    private_key_path: Path,
+    passphrase: str,
+) -> None:
     signature = sign_bytes(input_path.read_bytes(), private_key_path, passphrase)
     signature_path.write_bytes(signature)
 

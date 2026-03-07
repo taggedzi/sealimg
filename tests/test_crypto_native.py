@@ -4,7 +4,6 @@ import pytest
 
 from sealimg.crypto import generate_keypair, sign_bytes, verify_bytes
 
-
 pytestmark = pytest.mark.skipif(
     importlib.util.find_spec("cryptography") is None,
     reason="cryptography dependency is not installed",

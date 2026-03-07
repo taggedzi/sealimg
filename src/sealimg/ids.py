@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import date
-import re
-
 
 ID_RE = re.compile(r"^(?P<prefix>[A-Z0-9_-]+)-(?P<day>\d{4}-\d{2}-\d{2})-(?P<seq>\d{4})$")
 
