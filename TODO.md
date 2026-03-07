@@ -46,17 +46,17 @@ This TODO is derived from `README.md`, `docs/`, `design/`, and `specs/` and is i
 - [x] Implement optional invisible watermark plugin interface (stub for v0.1, implementation by v0.5).
 
 ## 4) Manifest, Hashes, and Packaging
-- [ ] Generate SHA-256 for `master`, `web`, and `manifest.json`.
-- [ ] Build manifest with required/optional fields in stable ordering.
-- [ ] Write `sha256.txt` output for human/tool verification.
-- [ ] Emit package README (`README.txt`) based on `examples/sample-readme.txt`.
-- [ ] Implement optional provenance ZIP bundle with:
-  - [ ] master
-  - [ ] web
-  - [ ] manifest.json
-  - [ ] manifest.sig
-  - [ ] sha256.txt
-  - [ ] README.txt
+- [x] Generate SHA-256 for `master`, `web`, and `manifest.json`.
+- [x] Build manifest with required/optional fields in stable ordering.
+- [x] Write `sha256.txt` output for human/tool verification.
+- [x] Emit package README (`README.txt`) based on `examples/sample-readme.txt`.
+- [x] Implement optional provenance ZIP bundle with:
+  - [x] master
+  - [x] web
+  - [x] manifest.json
+  - [x] manifest.sig
+  - [x] sha256.txt
+  - [x] README.txt
 
 ## 5) C2PA / Embedding Strategy
 - [ ] Implement sidecar-first contract: always produce `manifest.json` + `manifest.sig`.
