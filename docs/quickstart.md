@@ -76,3 +76,4 @@ sealimg seal ./my-portfolio --recursive --profile web \
 * See `docs/cli.md` for all commands.
 * See `docs/manifest.md` for schema.
 * See `docs/file-formats.md` for embedding behavior.
+* See `docs/integrations/README.md` for WordPress and SmileCMS publishing patterns.
