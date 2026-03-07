@@ -15,6 +15,7 @@ from .crypto import CryptoError, generate_keypair, public_key_fingerprint
 from .gui import run_gui
 from .image_pipeline import ImagePipelineError
 from .metadata import MetadataFields
+from .profiles import merge_profile
 from .timestamping import append_hash_line, build_hash_line, post_hash_line
 from .workflow import (
     derive_paths_from_config,
@@ -230,6 +231,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     profile_add.add_argument("--wm-style", default="diag-low")
     profile_add.add_argument("--wm-text", default="")
+    profile_add.add_argument("--timestamp-log", default="")
+    profile_add.add_argument("--timestamp-post-url", default="")
     profile_add.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH))
 
     return parser
@@ -265,6 +268,15 @@ def _seal_inputs(
         overrides.setdefault("wm_invisible", {})["enabled"] = args.wm_invisible == "on"
     if args.wm_invisible_mode:
         overrides.setdefault("wm_invisible", {})["mode"] = args.wm_invisible_mode
+    merged_profile = merge_profile(cfg.profiles.get("web", {}), selected_profile, overrides)
+    profile_timestamp_log = merged_profile.get("timestamp_log")
+    profile_timestamp_post_url = merged_profile.get("timestamp_post_url")
+    effective_timestamp_log = args.timestamp_log or (
+        profile_timestamp_log.strip() if isinstance(profile_timestamp_log, str) else ""
+    )
+    effective_timestamp_post_url = args.timestamp_post_url or (
+        profile_timestamp_post_url.strip() if isinstance(profile_timestamp_post_url, str) else ""
+    )
 
     metadata = MetadataFields(
         author=args.author or cfg.author,
@@ -280,8 +292,8 @@ def _seal_inputs(
     json_results: list[dict[str, object]] = []
     json_errors: list[dict[str, object]] = []
     public_proof = _resolve_public_proof_reference(
-        timestamp_log=args.timestamp_log,
-        timestamp_post_url=args.timestamp_post_url,
+        timestamp_log=effective_timestamp_log,
+        timestamp_post_url=effective_timestamp_post_url,
     )
 
     for image in inputs:
@@ -306,12 +318,12 @@ def _seal_inputs(
             )
 
             timestamp_line: str | None = None
-            if args.timestamp_log or args.timestamp_post_url:
+            if effective_timestamp_log or effective_timestamp_post_url:
                 timestamp_line = build_hash_line(result.manifest_path, result.image_id)
-                if args.timestamp_log:
-                    append_hash_line(Path(args.timestamp_log).expanduser(), timestamp_line)
-                if args.timestamp_post_url:
-                    post_hash_line(args.timestamp_post_url, timestamp_line)
+                if effective_timestamp_log:
+                    append_hash_line(Path(effective_timestamp_log).expanduser(), timestamp_line)
+                if effective_timestamp_post_url:
+                    post_hash_line(effective_timestamp_post_url, timestamp_line)
 
             json_results.append(
                 {
@@ -540,6 +552,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "enabled": args.wm_invisible == "on",
                     "mode": args.wm_invisible_mode,
                 },
+                "timestamp_log": args.timestamp_log,
+                "timestamp_post_url": args.timestamp_post_url,
             }
             updated = SealimgConfig.from_dict(data)
             try:

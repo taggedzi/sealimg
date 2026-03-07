@@ -34,7 +34,9 @@ sealimg profile list [--config-path PATH]
 sealimg profile show web [--config-path PATH]
 sealimg profile add web --long-edge 2560 --quality 82 \
   --wm-visible on --wm-invisible off --wm-invisible-mode auto \
-  --wm-style diag-low --wm-text "© You • site"
+  --wm-style diag-low --wm-text "© You • site" \
+  --timestamp-log "~/sealimg/hashes.txt" \
+  --timestamp-post-url "https://example.test/proofs"
 ```
 
 ### `sealimg seal`

@@ -32,6 +32,8 @@ profiles:
     wm_invisible:
       enabled: false
       mode: "auto"
+    timestamp_log: "~/sealimg/hashes.txt"
+    timestamp_post_url: "https://example.test/proofs"
   print:
     long_edge: 6000
     jpeg_quality: 95
@@ -45,3 +47,7 @@ profiles:
 ## Profiles
 
 Profiles define export behavior per use-case (web, print, portfolio). CLI flags override profile values.
+
+Optional profile-level timestamp defaults:
+- `timestamp_log`: local hash-log path used when seal/watch timestamp flags are not provided.
+- `timestamp_post_url`: endpoint URL used when seal/watch timestamp flags are not provided.
