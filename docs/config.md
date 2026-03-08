@@ -53,3 +53,5 @@ Profiles define export behavior per use-case (web, print, portfolio). CLI flags 
 Optional profile-level timestamp defaults:
 - `timestamp_log`: local hash-log path used when seal/watch timestamp flags are not provided.
 - `timestamp_post_url`: endpoint URL used when seal/watch timestamp flags are not provided.
+
+For revocation strategy, command usage, and strict verification behavior, see `docs/revocation.md`.

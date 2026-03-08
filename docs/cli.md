@@ -131,3 +131,5 @@ updates config automatically before sealing.
 - `seal --json`: emits summary JSON with outputs per input plus per-artifact pHash values under `phash.master` and `phash.web`, optional `recipient_fingerprint` when `--recipient-id` is supplied, per-artifact embed status under `embed.master` and `embed.web`, and sidecar availability under `sidecar.available`.
 - `verify --json`: emits signature/hash results plus per-artifact pHash values under `phash.master` and `phash.web`, per-artifact embed detection under `embed.master` and `embed.web`, and sidecar availability.
 - `inspect --json`: emits image format/size/metadata, a `phash` value for the inspected image, and package-aware embed status map under `embed` (typically `master` + `web` when sidecar is present), plus sidecar availability.
+
+For revocation concepts and recommended operational policy, see `docs/revocation.md`.
