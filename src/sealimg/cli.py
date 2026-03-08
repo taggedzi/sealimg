@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import time
+from datetime import date
 from pathlib import Path
 from typing import Sequence
 
@@ -16,6 +17,7 @@ from .gui import run_gui
 from .image_pipeline import ImagePipelineError
 from .metadata import MetadataFields
 from .profiles import merge_profile
+from .revocation import RevokedKey, find_revoked, load_revocations
 from .timestamping import append_hash_line, build_hash_line, post_hash_line
 from .workflow import (
     derive_paths_from_config,
@@ -66,6 +68,7 @@ def _default_config() -> SealimgConfig:
             "output_root": "./sealed",
             "signing_key": "~/.sealimg/keys/sealimg_ed25519.key",
             "artifact_naming": "source-id",
+            "revocations_file": "~/.sealimg/revocations.txt",
             "profiles": {
                 "web": {
                     "long_edge": 2560,
@@ -109,6 +112,22 @@ def build_parser() -> argparse.ArgumentParser:
     key_show.add_argument("public_key", help="Path to PEM public key")
     key_show.add_argument("--fingerprint", action="store_true", help="Print fingerprint only")
     key_show.add_argument("--pubkey", action="store_true", help="Print public key only")
+    key_revoke = key_sub.add_parser("revoke", help="Add or update a revoked key fingerprint")
+    key_revoke.add_argument("--fingerprint", required=True, help="Revoked public key fingerprint")
+    key_revoke.add_argument("--reason", required=True, help="Revocation reason text")
+    key_revoke.add_argument(
+        "--date",
+        dest="revoked_on",
+        default=date.today().isoformat(),
+        help="Revocation date (YYYY-MM-DD)",
+    )
+    key_revoke.add_argument("--revocations-file", default=None)
+    key_revoke.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH))
+    key_revocations = key_sub.add_parser("revocations", help="Manage revoked key records")
+    key_revocations_sub = key_revocations.add_subparsers(dest="revocations_command", required=True)
+    key_revocations_list = key_revocations_sub.add_parser("list", help="List revoked key records")
+    key_revocations_list.add_argument("--revocations-file", default=None)
+    key_revocations_list.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH))
 
     seal = subparsers.add_parser("seal", help="Seal image files")
     seal.add_argument("paths", nargs="+")
@@ -176,6 +195,12 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("target")
     verify.add_argument("--pubkey", default=None)
     verify.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH))
+    verify.add_argument("--revocations-file", default=None)
+    verify.add_argument(
+        "--strict-revocation",
+        action="store_true",
+        help="Return non-zero if signer key is listed as revoked",
+    )
     verify.add_argument("--json", action="store_true", help="Emit machine-readable JSON output")
 
     inspect = subparsers.add_parser("inspect", help="Inspect image metadata and embed status")
@@ -207,6 +232,7 @@ def build_parser() -> argparse.ArgumentParser:
     config_set.add_argument("--default-profile", default=None)
     config_set.add_argument("--signing-key", default=None)
     config_set.add_argument("--artifact-naming", choices=["legacy", "source-id"], default=None)
+    config_set.add_argument("--revocations-file", default=None)
     config_set.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH))
     config_get = config_sub.add_parser("get", help="Print config")
     config_get.add_argument("--config-path", default=str(DEFAULT_CONFIG_PATH))
@@ -425,6 +451,26 @@ def _resolve_public_proof_reference(
     return None
 
 
+def _resolve_revocations_file(
+    *,
+    config_path: str,
+    revocations_file_override: str | None,
+) -> Path:
+    if revocations_file_override:
+        return Path(revocations_file_override).expanduser()
+    cfg = _load_or_init_config(Path(config_path).expanduser())
+    return Path(cfg.revocations_file).expanduser()
+
+
+def _save_revocations(path: Path, entries: list[RevokedKey]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        f"{entry.fingerprint} {entry.revoked_on}" + (f" {entry.reason}" if entry.reason else "")
+        for entry in entries
+    ]
+    path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -485,6 +531,41 @@ def main(argv: Sequence[str] | None = None) -> int:
                     print("Error: public key is not valid UTF-8 PEM text.")
                     return 1
             return 0
+        if args.key_command == "revoke":
+            try:
+                revocations_path = _resolve_revocations_file(
+                    config_path=args.config_path,
+                    revocations_file_override=args.revocations_file,
+                )
+                entries = load_revocations(revocations_path)
+                entries = [entry for entry in entries if entry.fingerprint != args.fingerprint]
+                entries.append(
+                    RevokedKey(
+                        fingerprint=args.fingerprint.strip(),
+                        revoked_on=args.revoked_on.strip(),
+                        reason=args.reason.strip(),
+                    )
+                )
+                _save_revocations(revocations_path, entries)
+            except Exception as exc:
+                _print_safe_error("unable to update revocations", exc)
+                return 1
+            print(f"Revoked key recorded in {revocations_path}")
+            return 0
+        if args.key_command == "revocations" and args.revocations_command == "list":
+            try:
+                revocations_path = _resolve_revocations_file(
+                    config_path=args.config_path,
+                    revocations_file_override=args.revocations_file,
+                )
+                entries = load_revocations(revocations_path)
+            except Exception as exc:
+                _print_safe_error("unable to read revocations", exc)
+                return 1
+            for entry in entries:
+                suffix = f" {entry.reason}" if entry.reason else ""
+                print(f"{entry.fingerprint} {entry.revoked_on}{suffix}")
+            return 0
 
     if args.command == "config":
         config_path = Path(args.config_path).expanduser()
@@ -512,6 +593,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 data["signing_key"] = args.signing_key
             if args.artifact_naming:
                 data["artifact_naming"] = args.artifact_naming
+            if args.revocations_file is not None:
+                data["revocations_file"] = args.revocations_file
             updated = SealimgConfig.from_dict(data)
             try:
                 save_config(config_path, updated)
@@ -689,13 +772,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         return exit_code
 
     if args.command == "verify":
-        pubkey = Path(args.pubkey).expanduser() if args.pubkey else None
-        if pubkey is None:
-            config_path = Path(args.config_path).expanduser()
+        config_path = Path(args.config_path).expanduser()
+        cfg: SealimgConfig | None = None
+        if args.pubkey is None or args.revocations_file is None:
             try:
                 cfg = _load_or_init_config(config_path)
             except Exception as exc:
                 _print_safe_error("unable to load config", exc)
+                return 1
+        pubkey = Path(args.pubkey).expanduser() if args.pubkey else None
+        if pubkey is None:
+            if cfg is None:
+                _print_safe_error("unable to resolve config for signing key")
                 return 1
             key = Path(cfg.signing_key).expanduser()
             pubkey = key.with_suffix(".pub")
@@ -711,8 +799,24 @@ def main(argv: Sequence[str] | None = None) -> int:
             _print_safe_error("verification failed", exc)
             return 1
 
+        try:
+            revocations_default = cfg.revocations_file if cfg else "~/.sealimg/revocations.txt"
+            revocations_path = (
+                Path(args.revocations_file).expanduser()
+                if args.revocations_file
+                else Path(revocations_default).expanduser()
+            )
+            revocations = load_revocations(revocations_path)
+            key_id = public_key_fingerprint(pubkey.read_bytes())
+            revoked_entry = find_revoked(key_id, revocations)
+        except Exception as exc:
+            _print_safe_error("unable to evaluate revocations", exc)
+            return 1
+
         exit_code = 0
         if not result.signature_valid or not result.hash_valid:
+            exit_code = 2
+        if args.strict_revocation and revoked_entry is not None:
             exit_code = 2
         if args.json:
             print(
@@ -741,6 +845,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                             },
                         },
                         "sidecar": {"available": result.sidecar_available},
+                        "revocation": {
+                            "checked": True,
+                            "revocations_file": str(revocations_path),
+                            "key_revoked": revoked_entry is not None,
+                            "revoked_on": revoked_entry.revoked_on if revoked_entry else None,
+                            "reason": revoked_entry.reason if revoked_entry else None,
+                        },
                     },
                     sort_keys=True,
                 )
@@ -757,7 +868,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"  master: {result.master_embed_status.status}")
         print(f"  web: {result.web_embed_status.status}")
         print(f"Sidecar: {'available' if result.sidecar_available else 'missing'}")
+        if revoked_entry is None:
+            print(f"Revocation: clear ({revocations_path})")
+        else:
+            print(
+                "Revocation: revoked "
+                f"(on {revoked_entry.revoked_on}; reason: {revoked_entry.reason or 'n/a'})"
+            )
         if not result.signature_valid or not result.hash_valid:
+            return 2
+        if args.strict_revocation and revoked_entry is not None:
             return 2
         return 0
 

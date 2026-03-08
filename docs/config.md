@@ -11,6 +11,7 @@ Default: `~/.sealimg/config.yml`
 - `output_root`: where sealed folders are written.
 - `signing_key`: path to encrypted private key.
 - `artifact_naming`: output artifact naming strategy (`source-id` or `legacy`).
+- `revocations_file`: path to revocation list used by `verify` and key-revocation commands.
 
 ### Example
 ```yaml
@@ -21,6 +22,7 @@ default_profile: "web"
 output_root: "./sealed"
 signing_key: "~/.sealimg/keys/matthew_ed25519.key"
 artifact_naming: "source-id"
+revocations_file: "~/.sealimg/revocations.txt"
 profiles:
   web:
     long_edge: 2560
