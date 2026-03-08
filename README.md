@@ -124,6 +124,7 @@ Important keys:
 - [Quickstart](docs/quickstart.md)
 - [CLI reference](docs/cli.md)
 - [Config](docs/config.md)
+- [Key revocation](docs/revocation.md)
 - [Manifest format](docs/manifest.md)
 - [File formats and embedding behavior](docs/file-formats.md)
 - [FAQ](docs/faq.md)

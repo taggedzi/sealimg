@@ -93,6 +93,7 @@ Watermark controls in the main GUI are read-only and reflect the selected profil
 ## Next Steps
 
 * See `docs/cli.md` for all commands.
+* See `docs/revocation.md` for key compromise/revocation workflow.
 * See `docs/manifest.md` for schema.
 * See `docs/file-formats.md` for embedding behavior.
 * See `docs/integrations/README.md` for WordPress and SmileCMS publishing patterns.
