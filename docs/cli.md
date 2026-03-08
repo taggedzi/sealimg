@@ -18,12 +18,26 @@ Show public key / fingerprint.
 sealimg key show <public_key.pem> [--fingerprint | --pubkey]
 ```
 
+### `sealimg key revoke`
+Add/update a revoked key fingerprint entry.
+```
+sealimg key revoke --fingerprint <key_id> --reason "key compromise" \
+  [--date YYYY-MM-DD] [--revocations-file PATH] [--config-path PATH]
+```
+
+### `sealimg key revocations list`
+List revoked key entries.
+```
+sealimg key revocations list [--revocations-file PATH] [--config-path PATH]
+```
+
 ### `sealimg config`
 Set or view defaults.
 ```
 sealimg config set --author "Name" --site "https://..." --license "CC BY-NC 4.0" \
   --output-root "./sealed" --default-profile "web" \
-  --signing-key "~/.sealimg/keys/you_ed25519.key"
+  --signing-key "~/.sealimg/keys/you_ed25519.key" \
+  --revocations-file "~/.sealimg/revocations.txt"
 sealimg config get [--config-path PATH]
 ```
 
@@ -79,6 +93,7 @@ Invisible payload modes:
 Verify a sealed image or manifest.
 ```
 sealimg verify <image-or-manifest> [--pubkey PATH] [--config-path PATH] [--json]
+[--revocations-file PATH] [--strict-revocation]
 ```
 
 Verification checks:

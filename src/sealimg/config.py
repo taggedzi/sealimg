@@ -20,6 +20,7 @@ class SealimgConfig:
     output_root: str
     signing_key: str
     artifact_naming: str = "source-id"
+    revocations_file: str = "~/.sealimg/revocations.txt"
     profiles: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     @classmethod
@@ -57,6 +58,9 @@ class SealimgConfig:
         artifact_naming = str(payload.get("artifact_naming", "source-id")).strip().lower()
         if artifact_naming not in {"legacy", "source-id"}:
             raise ConfigError("artifact_naming must be one of: legacy, source-id")
+        revocations_file = str(
+            payload.get("revocations_file", "~/.sealimg/revocations.txt")
+        ).strip()
 
         return cls(
             author=payload["author"],
@@ -66,6 +70,7 @@ class SealimgConfig:
             output_root=payload["output_root"],
             signing_key=payload["signing_key"],
             artifact_naming=artifact_naming,
+            revocations_file=revocations_file,
             profiles=profiles,
         )
 
@@ -78,6 +83,7 @@ class SealimgConfig:
             "output_root": self.output_root,
             "signing_key": self.signing_key,
             "artifact_naming": self.artifact_naming,
+            "revocations_file": self.revocations_file,
             "profiles": self.profiles,
         }
 

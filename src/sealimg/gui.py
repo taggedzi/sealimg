@@ -15,7 +15,9 @@ from typing import Sequence
 
 from . import __version__
 from .config import SealimgConfig, load_config, save_config
+from .crypto import public_key_fingerprint
 from .profiles import merge_profile
+from .revocation import find_revoked, load_revocations
 
 VISIBLE_WATERMARK_STYLES = ("diag-low", "flat")
 
@@ -304,6 +306,12 @@ def normalize_visible_style(style: str) -> str:
 
 
 def collect_about_info(config_path: str) -> dict[str, str]:
+    revocations_file = "~/.sealimg/revocations.txt"
+    try:
+        cfg = load_config(Path(config_path).expanduser())
+        revocations_file = cfg.revocations_file
+    except Exception:
+        pass
     return {
         "Sealimg version": __version__,
         "Python version": platform.python_version(),
@@ -313,6 +321,39 @@ def collect_about_info(config_path: str) -> dict[str, str]:
         "Executable": sys.executable,
         "TkinterDnD2": "installed" if has_tkinterdnd2() else "not installed",
         "Config path": str(Path(config_path).expanduser()),
+        "Revocations file": str(Path(revocations_file).expanduser()),
+    }
+
+
+def summarize_key_revocation_status(config_path: str) -> dict[str, str]:
+    cfg_path = Path(config_path).expanduser()
+    if not cfg_path.exists():
+        return {"fingerprint": "(unknown)", "status": "Config not found"}
+    try:
+        cfg = load_config(cfg_path)
+    except Exception as exc:
+        return {"fingerprint": "(unknown)", "status": f"Config invalid: {exc}"}
+    pubkey = Path(cfg.signing_key).expanduser().with_suffix(".pub")
+    if not pubkey.exists():
+        return {"fingerprint": "(unknown)", "status": f"Public key not found: {pubkey}"}
+    try:
+        fingerprint = public_key_fingerprint(pubkey.read_bytes())
+    except Exception as exc:
+        return {"fingerprint": "(unknown)", "status": f"Key read error: {exc}"}
+    try:
+        revocations_path = Path(cfg.revocations_file).expanduser()
+        revoked = find_revoked(fingerprint, load_revocations(revocations_path))
+    except Exception as exc:
+        return {
+            "fingerprint": fingerprint,
+            "status": f"Revocation read error: {exc}",
+        }
+    if revoked is None:
+        return {"fingerprint": fingerprint, "status": f"Clear ({revocations_path})"}
+    reason = revoked.reason or "n/a"
+    return {
+        "fingerprint": fingerprint,
+        "status": f"Revoked on {revoked.revoked_on} ({reason})",
     }
 
 
@@ -381,6 +422,8 @@ def run_gui(
     wm_visible_text_summary_var = tk.StringVar(value="")
     timestamp_log_summary_var = tk.StringVar(value="(not set)")
     timestamp_post_url_summary_var = tk.StringVar(value="(not set)")
+    key_fingerprint_summary_var = tk.StringVar(value="(unknown)")
+    key_revocation_summary_var = tk.StringVar(value="Unknown")
     bundle_var = tk.BooleanVar(value=False)
     no_embed_var = tk.BooleanVar(value=False)
 
@@ -501,6 +544,20 @@ def run_gui(
         wraplength=680,
     ).grid(row=1, column=1, sticky="w", padx=(0, 8), pady=(2, 8))
 
+    key_status = ttk.LabelFrame(frame, text="Signing key status (read-only)")
+    key_status.pack(fill="x", pady=(0, 6))
+    ttk.Label(key_status, text="Fingerprint").grid(row=0, column=0, sticky="w", padx=8, pady=(8, 2))
+    ttk.Label(key_status, textvariable=key_fingerprint_summary_var).grid(
+        row=0, column=1, sticky="w", padx=(0, 8), pady=(8, 2)
+    )
+    ttk.Label(key_status, text="Revocation").grid(row=1, column=0, sticky="w", padx=8, pady=(2, 8))
+    ttk.Label(
+        key_status,
+        textvariable=key_revocation_summary_var,
+        justify="left",
+        wraplength=680,
+    ).grid(row=1, column=1, sticky="w", padx=(0, 8), pady=(2, 8))
+
     flags = ttk.Frame(frame)
     flags.pack(fill="x", pady=(0, 6))
     ttk.Checkbutton(flags, text="Recursive", variable=recursive_var).grid(
@@ -606,6 +663,9 @@ def run_gui(
         timestamp_post_url_summary_var.set(
             str(merged_profile.get("timestamp_post_url", "")).strip() or "(not set)"
         )
+        key_state = summarize_key_revocation_status(cfg_path)
+        key_fingerprint_summary_var.set(key_state["fingerprint"])
+        key_revocation_summary_var.set(key_state["status"])
 
     def _open_settings_modal() -> None:
         cfg_path = config_var.get().strip()
@@ -617,7 +677,7 @@ def run_gui(
 
         win = tk.Toplevel(root)
         win.title("Settings")
-        win.geometry("760x340")
+        win.geometry("760x380")
         win.transient(root)
         win.grab_set()
 
@@ -631,6 +691,7 @@ def run_gui(
         output_root_cfg_var = tk.StringVar(value=cfg.output_root)
         signing_key_var = tk.StringVar(value=cfg.signing_key)
         artifact_naming_var = tk.StringVar(value=cfg.artifact_naming)
+        revocations_file_var = tk.StringVar(value=cfg.revocations_file)
         profile_names = sorted(cfg.profiles.keys())
 
         ttk.Label(body, text="Author *").grid(row=0, column=0, sticky="w")
@@ -669,6 +730,10 @@ def run_gui(
             textvariable=artifact_naming_var,
             width=24,
         ).grid(row=6, column=1, sticky="w", padx=6)
+        ttk.Label(body, text="Revocations file *").grid(row=7, column=0, sticky="w")
+        ttk.Entry(body, textvariable=revocations_file_var, width=58).grid(
+            row=7, column=1, sticky="ew", padx=6
+        )
 
         def _browse_signing_key() -> None:
             current = signing_key_var.get().strip()
@@ -685,10 +750,26 @@ def run_gui(
         ttk.Button(body, text="Browse...", command=_browse_signing_key).grid(
             row=5, column=2, sticky="w"
         )
+
+        def _browse_revocations_file() -> None:
+            current = revocations_file_var.get().strip()
+            selected = filedialog.asksaveasfilename(
+                title="Select revocations file",
+                initialdir=str(Path(current).expanduser().parent) if current else str(Path.home()),
+                initialfile=Path(current).name if current else "revocations.txt",
+                defaultextension=".txt",
+                filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+            )
+            if selected:
+                revocations_file_var.set(str(selected))
+
+        ttk.Button(body, text="Browse...", command=_browse_revocations_file).grid(
+            row=7, column=2, sticky="w"
+        )
         body.columnconfigure(1, weight=1)
 
         btns_local = ttk.Frame(body)
-        btns_local.grid(row=7, column=0, columnspan=3, sticky="w", pady=(12, 0))
+        btns_local.grid(row=8, column=0, columnspan=3, sticky="w", pady=(12, 0))
 
         def _save_settings() -> None:
             author = author_var.get().strip()
@@ -698,6 +779,7 @@ def run_gui(
             output_root_cfg = output_root_cfg_var.get().strip()
             signing_key = signing_key_var.get().strip()
             artifact_naming = artifact_naming_var.get().strip()
+            revocations_file = revocations_file_var.get().strip()
 
             if not author:
                 messagebox.showerror("Sealimg", "Author is required.", parent=win)
@@ -727,6 +809,9 @@ def run_gui(
             if artifact_naming not in {"source-id", "legacy"}:
                 messagebox.showerror("Sealimg", "Artifact naming is required.", parent=win)
                 return
+            if not revocations_file:
+                messagebox.showerror("Sealimg", "Revocations file is required.", parent=win)
+                return
 
             data = cfg.to_dict()
             data["author"] = author
@@ -736,6 +821,7 @@ def run_gui(
             data["output_root"] = output_root_cfg
             data["signing_key"] = signing_key
             data["artifact_naming"] = artifact_naming
+            data["revocations_file"] = revocations_file
             try:
                 save_config(Path(cfg_path).expanduser(), SealimgConfig.from_dict(data))
             except Exception as exc:

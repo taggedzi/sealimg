@@ -289,6 +289,13 @@ def test_collect_about_info_includes_expected_fields(tmp_path: Path) -> None:
     assert info["Executable"]
     assert info["TkinterDnD2"] in {"installed", "not installed"}
     assert str(tmp_path / "config.yml") in info["Config path"]
+    assert "Revocations file" in info
+
+
+def test_summarize_key_revocation_status_without_config(tmp_path: Path) -> None:
+    summary = gui.summarize_key_revocation_status(str(tmp_path / "missing.yml"))
+    assert summary["fingerprint"] == "(unknown)"
+    assert "Config not found" in summary["status"]
 
 
 def test_build_keygen_cli_args_uses_config_sibling_keys_dir(tmp_path: Path) -> None:
